@@ -8,7 +8,7 @@ venv/
 # Django
 db.sqlite3*
 staticfiles/
-media/
+# media/ SÍ se versiona (fotos necesarias en PythonAnywhere)
 media.zip
 media.z01
 media.z02
