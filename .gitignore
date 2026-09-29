@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Django
+db.sqlite3*
+staticfiles/
+media/
+
+# Entorno / secretos (nunca subir claves ni cuentas)
+.env
+*.env
+Liga Mella Hosting.txt
+
+# Sistema
+.DS_Store
+Thumbs.db

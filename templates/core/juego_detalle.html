@@ -1,0 +1,52 @@
+{% extends 'base_publica.html' %}{% block title %}{{ juego.local.nombre }} vs {{ juego.visita.nombre }} | Liga Mella{% endblock %}{% block content %}
+<div class="mb-2"><a class="btn btn-ghost btn-sm" href="{% url 'juegos' %}">◀ Volver a Juegos</a></div>
+<div class="scoreboard p-3 text-center mb-3">
+  <small class="badge {% if juego.estado == 'envivo' %}badge-live{% else %}bg-secondary{% endif %}">{{ juego.estado }} • {{ juego.inning_actual }} • {{ juego.torneo.nombre }} {{ juego.torneo.temporada }}</small>
+  {% if juego.fase != 'regular' %}<br><small class="badge bg-danger mt-1">{{ juego.get_fase_display }} {{ juego.serie }}</small>{% endif %}
+  <div class="d-flex justify-content-center align-items-center gap-3 mt-2 flex-wrap">
+    <span class="d-flex align-items-center gap-2">{% if juego.local.logo %}<img src="{{ juego.local.logo.url }}" class="mlogo" alt="{{ juego.local.nombre }}">{% endif %}<strong>{{ juego.local.nombre }}</strong></span>
+    <span class="score">{{ juego.carreras_local }} — {{ juego.carreras_visita }}</span>
+    <span class="d-flex align-items-center gap-2"><strong>{{ juego.visita.nombre }}</strong>{% if juego.visita.logo %}<img src="{{ juego.visita.logo.url }}" class="mlogo" alt="{{ juego.visita.nombre }}">{% endif %}</span>
+  </div>
+  <small>{{ juego.fecha|date:"d M Y H:i" }} • {{ juego.estadio }}</small>
+</div>
+
+{% if entradas %}
+<div class="card card-mella p-3 mb-3"><h5 class="oswald">Box-score por inning</h5>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Eq</th>{% for e in entradas %}<th>{{ e.numero }}</th>{% endfor %}<th>C</th><th>H</th></tr></thead><tbody>
+<tr><td><strong>{{ juego.visita.sigla }}</strong></td>{% for e in entradas %}<td>{{ e.carreras_visita }}</td>{% endfor %}<td><strong>{{ juego.carreras_visita }}</strong></td><td>{{ tot_hv }}</td></tr>
+<tr><td><strong>{{ juego.local.sigla }}</strong></td>{% for e in entradas %}<td>{{ e.carreras_local }}</td>{% endfor %}<td><strong>{{ juego.carreras_local }}</strong></td><td>{{ tot_hl }}</td></tr>
+</tbody></table></div></div>
+{% endif %}
+
+<h4 class="sect-title">Alineaciones del juego</h4>
+<div class="row g-3">
+<div class="col-12 col-lg-6"><div class="card card-mella p-3 h-100">
+  <h5 class="oswald d-flex align-items-center gap-2">{% if juego.local.logo %}<img src="{{ juego.local.logo.url }}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--mella-gold)">{% endif %}{{ juego.local.nombre }} <small class="text-muted">· Local</small></h5>
+  {% if alin_local %}
+  {% include 'core/_terreno_alineacion.html' with alin=alin_local por=por_local por_bd=por_bd_local por_ba=por_ba_local %}
+  <div class="table-responsive"><table class="tbl"><thead><tr><th>#B</th><th>Jugador</th><th>Pos</th></tr></thead><tbody>
+  {% for d in alin_local.orden_bateo %}<tr><td><strong>{{ d.orden_bateo }}</strong></td>
+  <td><span class="d-flex align-items-center gap-2">{% if d.jugador.foto %}<img class="player-cutout" src="{{ d.jugador.foto.url }}" alt="{{ d.jugador.nombre_completo }}">{% else %}<span class="avatar">{{ d.jugador.nombre|slice:":1" }}</span>{% endif %}<span><strong>{{ d.jugador.nombre_completo }}</strong><br><small class="text-muted">#{{ d.jugador.dorsal }}</small></span></span></td>
+  <td><span class="badge bg-dark">{{ d.posicion }}</span></td></tr>{% endfor %}
+  </tbody></table></div>
+  <small class="text-muted">Guardada {{ alin_local.actualizada|date:"d M H:i" }}{% if alin_local.notas %} · {{ alin_local.notas }}{% endif %}{% if prest_local %} · <span class="badge bg-warning text-dark">Del otro juego del día (ida/vuelta {{ orig_local.fecha|date:"H:i" }})</span>{% endif %}</small>
+  {% else %}<p class="text-muted mb-0">Este equipo aún no registró alineación para este juego.</p>{% endif %}
+</div></div>
+<div class="col-12 col-lg-6"><div class="card card-mella p-3 h-100">
+  <h5 class="oswald d-flex align-items-center gap-2">{% if juego.visita.logo %}<img src="{{ juego.visita.logo.url }}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--mella-gold)">{% endif %}{{ juego.visita.nombre }} <small class="text-muted">· Visita</small></h5>
+  {% if alin_visita %}
+  {% include 'core/_terreno_alineacion.html' with alin=alin_visita por=por_visita por_bd=por_bd_visita por_ba=por_ba_visita %}
+  <div class="table-responsive"><table class="tbl"><thead><tr><th>#B</th><th>Jugador</th><th>Pos</th></tr></thead><tbody>
+  {% for d in alin_visita.orden_bateo %}<tr><td><strong>{{ d.orden_bateo }}</strong></td>
+  <td><span class="d-flex align-items-center gap-2">{% if d.jugador.foto %}<img class="player-cutout" src="{{ d.jugador.foto.url }}" alt="{{ d.jugador.nombre_completo }}">{% else %}<span class="avatar">{{ d.jugador.nombre|slice:":1" }}</span>{% endif %}<span><strong>{{ d.jugador.nombre_completo }}</strong><br><small class="text-muted">#{{ d.jugador.dorsal }}</small></span></span></td>
+  <td><span class="badge bg-dark">{{ d.posicion }}</span></td></tr>{% endfor %}
+  </tbody></table></div>
+  <small class="text-muted">Guardada {{ alin_visita.actualizada|date:"d M H:i" }}{% if alin_visita.notas %} · {{ alin_visita.notas }}{% endif %}{% if prest_visita %} · <span class="badge bg-warning text-dark">Del otro juego del día (ida/vuelta {{ orig_visita.fecha|date:"H:i" }})</span>{% endif %}</small>
+  {% else %}<p class="text-muted mb-0">Este equipo aún no registró alineación para este juego.</p>{% endif %}
+</div></div>
+</div>
+
+<div class="card card-mella p-3 mt-3"><h5 class="oswald">Jugadas del juego</h5>
+{% for jg in jugadas %}<div><small>{{ jg.inning }} — {{ jg.descripcion }} ({{ jg.creada|date:"H:i" }})</small></div>{% empty %}<p class="text-muted mb-0">Sin jugadas registradas.</p>{% endfor %}</div>
+{% endblock %}

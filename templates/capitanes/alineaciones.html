@@ -1,0 +1,17 @@
+{% extends 'base_capitan.html' %}{% block title %}Alineaciones | Capitán{% endblock %}{% block content %}
+<div class="page-head"><h3 class="oswald">Alineaciones · {{ equipo.nombre }}</h3><a class="btn btn-gold btn-sm" href="{% url 'cap_titular' %}"><i class="bi bi-star"></i> Titular regular (página pública) →</a></div>
+<p class="text-muted"><small>Elige un juego pendiente para asignar posiciones y orden al bate. El <strong>titular regular</strong> es aparte: es la formación fija que se muestra en la página pública del equipo.</small></p>
+<div class="row g-3">
+<div class="col-12 col-lg-7"><div class="card card-mella p-3"><h5 class="oswald">Juegos pendientes ({{ pendientes|length }})</h5><div class="table-responsive"><table class="tbl"><thead><tr><th>Fecha</th><th>Partido</th><th>Alineación</th><th></th></tr></thead><tbody>
+{% for j in pendientes %}<tr>
+<td><small>{{ j.fecha|date:"d M H:i" }}</small></td>
+<td><small><strong>{% if j.local_id == equipo.id %}vs {{ j.visita.nombre }}{% else %}vs {{ j.local.nombre }}{% endif %}</strong><br>{{ j.estadio }}</small></td>
+<td>{% if j.tiene_alin %}<span class="badge bg-success">Lista</span>{% else %}<span class="badge bg-warning text-dark">Sin hacer</span>{% endif %}</td>
+<td class="actions"><a class="btn btn-sm btn-gold" href="{% url 'cap_alin_editar' j.id %}">{% if j.tiene_alin %}Editar{% else %}Alinear{% endif %} →</a></td>
+</tr>{% empty %}<tr><td colspan="4" class="text-muted">Sin juegos pendientes.</td></tr>{% endfor %}
+</tbody></table></div></div></div>
+<div class="col-12 col-lg-5"><div class="card card-mella p-3"><h5 class="oswald">Mis plantillas ({{ plantillas|length }})</h5><small class="text-muted">Guardan roster + posiciones + orden bateo.</small>
+{% for p in plantillas %}<div class="border rounded p-2 mb-2"><strong>{{ p.nombre }}</strong> <small class="text-muted">({{ p.detalles.count }} jug.)</small><br><small>{% for d in p.detalles.all %}{{ d.orden_bateo }}.{{ d.jugador.nombre }} ({{ d.posicion }}){% if not forloop.last %} · {% endif %}{% endfor %}</small><form method="post" action="{% url 'cap_plantilla_eliminar' p.id %}" class="mt-1">{% csrf_token %}<button class="btn btn-sm btn-ghost">Eliminar</button></form></div>{% empty %}<p class="text-muted mt-2">Aún no tienes plantillas. Entra a un juego y usa “Guardar como plantilla”.</p>{% endfor %}
+</div></div>
+</div>
+{% endblock %}

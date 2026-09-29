@@ -1,0 +1,32 @@
+{% extends 'base_publica.html' %}{% block title %}{{ j.nombre_completo }} | Liga Mella{% endblock %}{% block content %}
+<style>
+.jg-cover{height:220px;border-radius:16px 16px 0 0;background:linear-gradient(120deg,{{ j.equipo.color|default:'#0A1A3A' }} 20%,#050b1d 130%);position:relative;overflow:hidden}
+.jg-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.jg-cover .jg-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Oswald;font-weight:700;font-size:4rem;color:rgba(255,255,255,.18);letter-spacing:6px}
+.jg-bar{background:#fff;border-radius:0 0 16px 16px;box-shadow:0 10px 26px rgba(10,26,58,.12);padding:0 20px 16px}
+.jg-ava{width:120px;height:150px;object-fit:contain;object-position:center bottom;background:transparent;flex-shrink:0;margin-top:-75px;position:relative;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.jg-ava-ph{width:110px;height:110px;border-radius:50%;object-fit:cover;border:5px solid #fff;background:#0A1A3A;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Oswald;font-weight:700;font-size:2rem;margin-top:-55px;position:relative;box-shadow:0 6px 18px rgba(0,0,0,.3);flex-shrink:0}
+@media(max-width:576px){.jg-cover{height:150px}.jg-ava{width:90px;height:112px;margin-top:-56px}.jg-ava-ph{width:84px;height:84px;margin-top:-42px;font-size:1.5rem}}
+</style>
+<div class="jg-cover">{% if j.portada %}<img src="{{ j.portada.url }}" alt="Portada de {{ j.nombre_completo }}">{% else %}<span class="jg-fallback">{{ j.equipo.sigla|default:"MELLA" }}</span>{% endif %}</div>
+<div class="jg-bar mb-3"><div class="d-flex gap-3 align-items-end flex-wrap">
+{% if j.foto %}<img src="{{ j.foto.url }}" class="jg-ava" alt="{{ j.nombre_completo }}">{% else %}<div class="jg-ava-ph">{{ j.nombre|slice:":1" }}</div>{% endif %}
+<div class="flex-grow-1 pt-2"><h2 class="oswald mb-0">#{{ j.dorsal }} {{ j.nombre_completo }} {% if j.es_capitan %}<span class="badge bg-warning text-dark">★ Capitán</span>{% endif %}</h2>
+<div class="mt-1"><span class="badge bg-dark">{{ j.posicion }}</span> <a href="/equipos/{{ j.equipo.id }}/" class="fw-bold text-decoration-none">{{ j.equipo.nombre }}</a> <small class="text-muted">· {{ tot.temps }} temporada(s)</small></div></div>
+</div></div>
+
+<div class="row g-2 mb-3">
+<div class="col-4 col-md-2"><div class="stat-card">AVG<h3 class="oswald">{{ tot.avg|floatformat:3 }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">HR<h3 class="oswald">{{ tot.hr }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">CI<h3 class="oswald">{{ tot.rbi }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">H<h3 class="oswald">{{ tot.h }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">OPS<h3 class="oswald">{{ tot.ops|floatformat:3 }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">AB<h3 class="oswald">{{ tot.ab }}</h3></div></div>
+</div>
+<p class="mt-0"><small class="text-muted">Acumulado histórico en todas las temporadas.</small></p>
+
+<h4 class="sect-title">Por temporada</h4>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Torneo</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th><th>HR</th><th>CI</th><th>BB</th><th>K</th><th>AVG</th><th>OBP</th><th>SLG</th><th>OPS</th></tr></thead><tbody>
+{% for l in lineas %}<tr><td><small>{{ l.torneo.nombre }} {{ l.torneo.temporada }}</small></td><td>{{ l.ab }}</td><td>{{ l.r }}</td><td>{{ l.h }}</td><td>{{ l.h2 }}</td><td>{{ l.h3 }}</td><td>{{ l.hr }}</td><td><strong>{{ l.rbi }}</strong></td><td>{{ l.bb }}</td><td>{{ l.k }}</td><td class="pct">{{ l.avg|floatformat:3 }}</td><td>{{ l.obp|floatformat:3 }}</td><td>{{ l.slg|floatformat:3 }}</td><td><strong>{{ l.ops|floatformat:3 }}</strong></td></tr>{% empty %}<tr><td colspan="14" class="text-muted">Sin estadísticas registradas todavía.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

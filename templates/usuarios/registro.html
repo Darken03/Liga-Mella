@@ -1,0 +1,7 @@
+{% extends 'base_publica.html' %}{% block title %}Registro | Liga Mella{% endblock %}{% block content %}<div class="auth-card"><h3>⚾ REGISTRO</h3><p class="text-muted">Crea tu cuenta de jugador/aficionado. Un capitán podrá invitarte a su equipo.</p><form method="post">{% csrf_token %}
+<label class="frm-label">Username *</label><input name="username" class="form-control mb-3" required>
+<div class="row"><div class="col-6"><label class="frm-label">Nombre</label><input name="first_name" class="form-control mb-3"></div><div class="col-6"><label class="frm-label">Apellido</label><input name="last_name" class="form-control mb-3"></div></div>
+<label class="frm-label">Contraseña *</label><input type="password" name="password" class="form-control mb-3" required>
+<div class="row"><div class="col-4"><label class="frm-label">CI</label><input name="ci" class="form-control mb-3"></div><div class="col-4"><label class="frm-label">Edad</label><input type="number" name="edad" class="form-control mb-3"></div><div class="col-4"><label class="frm-label">Estatura</label><input name="estatura" class="form-control mb-3" placeholder="1.80m"></div></div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<button class="btn btn-mella w-100">Crear cuenta</button></form><p class="text-center mt-3 mb-0"><small>¿Ya tienes cuenta? <a href="/cuenta/login/">Entra</a></small></p></div>{% endblock %}

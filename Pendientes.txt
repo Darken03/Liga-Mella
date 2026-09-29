@@ -1,0 +1,2 @@
+Permite que en el apartado de la noticia se pueda cambiar el tamaño de la imagen
+Ademas añade un sistema que toda imagen que se suba se convierta en webP

@@ -1,0 +1,12 @@
+{% extends 'base_admin.html' %}{% block title %}Jugadores | Admin{% endblock %}{% block content %}
+<div class="page-head"><h3 class="oswald">Jugadores ({{ jugadores|length }})</h3><a class="btn btn-mella btn-add" href="{% url 'adm_jugador_nuevo' %}"><i class="bi bi-plus-lg"></i>Añadir jugador</a></div>
+<form class="d-flex gap-2 mb-3" style="max-width:420px"><select name="eq" class="form-select" onchange="this.form.submit()"><option value="">Todos los equipos</option>{% for e in equipos %}<option value="{{ e.id }}" {% if eq == e.id|stringformat:"s" %}selected{% endif %}>{{ e.nombre }}</option>{% endfor %}</select></form>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>#</th><th>Foto</th><th>Jugador</th><th>Carnet</th><th>Edad</th><th>Equipo</th><th>Pos</th><th>AVG/HR/CI</th><th class="text-end">Acciones</th></tr></thead><tbody>
+{% for j in jugadores %}<tr>
+<td>{{ j.dorsal }}</td>
+<td>{% if j.foto %}<img src="{{ j.foto.url }}" class="player-cutout" alt="{{ j.nombre_completo }}">{% else %}<span class="avatar">{{ j.nombre|slice:":1" }}</span>{% endif %}</td>
+<td><strong>{{ j.nombre_completo }}</strong>{% if j.es_capitan %} ★{% endif %}{% if j.usuario %}<br><small class="text-muted">@{{ j.usuario.username }}</small>{% endif %}</td>
+<td><small>{{ j.ci|default:"—" }}</small></td><td>{{ j.edad|default:"—" }}</td><td><small>{{ j.equipo.nombre }}</small></td><td>{{ j.posicion }}</td><td><small>{{ j.avg }} / {{ j.hr }} / {{ j.rbi }}</small></td>
+<td class="actions"><a class="act view" title="Ver" href="{% url 'adm_jugador_detalle' j.id %}"><i class="bi bi-eye"></i></a> <a class="act edit" title="Editar" href="{% url 'adm_jugador_editar' j.id %}"><i class="bi bi-pencil"></i></a> <a class="act del" title="Eliminar" href="{% url 'adm_jugador_eliminar' j.id %}"><i class="bi bi-trash"></i></a></td>
+</tr>{% empty %}<tr><td colspan="9" class="text-muted">Sin jugadores.</td></tr>{% endfor %}
+</tbody></table></div>{% endblock %}

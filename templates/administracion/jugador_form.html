@@ -1,0 +1,32 @@
+{% extends 'base_admin.html' %}{% block content %}
+<div class="col-lg-9"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">{{ titulo }}</h3><a class="act view" href="{% url 'adm_jugadores' %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.non_field_errors }}
+<div class="frm-sec"><i class="bi bi-person"></i> Datos personales</div>
+<div class="row g-3">
+<div class="col-md-4"><label class="frm-label">Nombre</label>{{ form.nombre }}</div>
+<div class="col-md-4"><label class="frm-label">Apellido</label>{{ form.apellido }}</div>
+<div class="col-md-4"><label class="frm-label">Foto</label>{{ form.foto }}{% if form.instance.foto %}<small><a href="{{ form.instance.foto.url }}" target="_blank">ver actual</a></small>{% endif %}</div>
+</div>
+<div class="frm-sec"><i class="bi bi-card-text"></i> Documento</div>
+<div class="row g-3">
+<div class="col-md-4"><label class="frm-label">Carnet de identidad</label>{{ form.ci }}</div>
+<div class="col-md-4"><label class="frm-label">Edad</label>{{ form.edad }}</div>
+<div class="col-md-4"><label class="frm-label">Estatura</label>{{ form.estatura }}</div>
+</div>
+<div class="frm-sec"><i class="bi bi-trophy"></i> Deportivo</div>
+<div class="row g-3">
+<div class="col-md-3"><label class="frm-label">Núm. chaparreta</label>{{ form.dorsal }}</div>
+<div class="col-md-3"><label class="frm-label">Posición</label>{{ form.posicion }}</div>
+<div class="col-md-3"><label class="frm-label">Equipo</label>{{ form.equipo }}</div>
+<div class="col-md-3"><label class="frm-label">Cuenta de usuario</label>{{ form.usuario }}</div>
+</div>
+<div class="frm-sec"><i class="bi bi-bar-chart"></i> Estadísticas</div>
+<div class="row g-3">
+<div class="col-md-3"><label class="frm-label">AVG</label>{{ form.avg }}</div>
+<div class="col-md-3"><label class="frm-label">HR</label>{{ form.hr }}</div>
+<div class="col-md-3"><label class="frm-label">CI (impulsadas)</label>{{ form.rbi }}</div>
+<div class="col-md-3"><label class="frm-label">ERA</label>{{ form.era }}</div>
+</div>
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_jugadores' %}">Cancelar</a><button class="btn btn-mella btn-add"><i class="bi bi-check-lg"></i>Guardar</button></div>
+</form></div></div>{% endblock %}

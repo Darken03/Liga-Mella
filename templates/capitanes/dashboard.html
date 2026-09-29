@@ -1,0 +1,16 @@
+{% extends 'base_capitan.html' %}{% block content %}
+<div class="dash-head"><h3 class="oswald mb-0">★ {% if equipo %}{{ equipo.nombre }}{% else %}Sin equipo{% endif %}</h3><small>Panel del capitán • {{ n_jug }} jugadores • {{ pend_fich }} fichajes pendientes</small></div>
+{% if equipo %}
+<div class="row g-3 mb-3">
+<div class="col-6 col-lg-3"><a href="{% url 'cap_jugadores' %}" class="text-decoration-none"><div class="card card-mella p-3 text-center"><i class="bi bi-people fs-3"></i><h6 class="oswald mt-2 mb-0">Jugadores</h6><small class="text-muted">{{ n_jug }} en roster • orden AVG</small></div></a></div>
+<div class="col-6 col-lg-3"><a href="{% url 'cap_juegos' %}" class="text-decoration-none"><div class="card card-mella p-3 text-center"><i class="bi bi-calendar-event fs-3"></i><h6 class="oswald mt-2 mb-0">Juegos</h6><small class="text-muted">Anteriores y pendientes</small></div></a></div>
+<div class="col-6 col-lg-3"><a href="{% url 'cap_fichajes' %}" class="text-decoration-none"><div class="card card-mella p-3 text-center"><i class="bi bi-arrow-left-right fs-3"></i><h6 class="oswald mt-2 mb-0">Fichajes {% if pend_fich %}<span class="badge bg-warning text-dark">{{ pend_fich }}</span>{% endif %}</h6><small class="text-muted">Solicitudes y fichar</small></div></a></div>
+<div class="col-6 col-lg-3"><a href="{% url 'cap_alineaciones' %}" class="text-decoration-none"><div class="card card-mella p-3 text-center"><i class="bi bi-diagram-3 fs-3"></i><h6 class="oswald mt-2 mb-0">Alineaciones</h6><small class="text-muted">Posiciones + orden bateo</small></div></a></div>
+<div class="col-6 col-lg-3"><a href="{% url 'cap_titular' %}" class="text-decoration-none"><div class="card card-mella p-3 text-center"><i class="bi bi-star fs-3"></i><h6 class="oswald mt-2 mb-0">Titular regular</h6><small class="text-muted">El que se ve en la página pública</small></div></a></div>
+</div>
+{% endif %}
+<h5 class="oswald mt-2">Próximos juegos de mi equipo</h5>
+<div class="side-jornada" style="position:static">{% for j in juegos %}{% include 'core/_matchup_mini.html' with j=j %}{% empty %}<p class="text-muted">Sin juegos programados.</p>{% endfor %}</div>
+<h5 class="oswald mt-4">Últimas invitaciones enviadas</h5>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Jugador</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>{% for s in enviadas %}<tr><td>{{ s.usuario.username }}</td><td><span class="badge {% if s.estado == 'pendiente' %}bg-warning text-dark{% elif s.estado == 'aceptada' %}bg-success{% else %}bg-secondary{% endif %}">{{ s.estado }}</span></td><td><small>{{ s.creada|date:"d M H:i" }}</small></td></tr>{% empty %}<tr><td colspan="3" class="text-muted">Sin solicitudes.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

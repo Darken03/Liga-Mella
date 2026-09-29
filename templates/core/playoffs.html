@@ -1,0 +1,48 @@
+{% extends 'base_publica.html' %}{% block title %}Playoffs | Liga Mella{% endblock %}{% block content %}
+<style>
+.sched-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 20px rgba(10,26,58,.10);border:1px solid var(--mella-line)}
+.sched-head{display:flex;align-items:center;gap:6px;background:var(--mella-navy);color:#fff;padding:6px 10px;font-size:.78rem}
+.sched-time{font-family:Oswald;font-weight:700;font-size:1rem;letter-spacing:1px;color:var(--mella-gold)}
+.sched-team{display:flex;align-items:center;gap:8px;padding:7px 10px}
+.sched-team + .sched-team{border-top:1px dashed var(--mella-line)}
+.sched-team img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid var(--mella-gold);flex-shrink:0}
+.sched-team .tn{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sched-score{margin-left:auto;font-family:Oswald;font-weight:700;font-size:1.2rem;background:#f1f5f9;border-radius:8px;min-width:34px;text-align:center;padding:0 6px}
+.sched-score.win{background:var(--mella-gold)}
+.sched-det{padding:2px 10px 8px;font-size:.8rem;color:#64748b}
+.sched-det summary{cursor:pointer;font-weight:700;color:var(--mella-navy);font-size:.78rem}
+</style>
+<div class="jornada-hero mb-3"><h2>PLAYOFFS</h2><span class="jornada-sub">SEMIFINAL · FINAL</span></div>
+{% if torneos %}<form class="d-flex gap-2 mb-3" style="max-width:380px" method="get"><select name="torneo" class="form-select" onchange="this.form.submit()">{% for t in torneos %}<option value="{{ t.id }}" {% if torneo and torneo.id == t.id %}selected{% endif %}>{{ t.nombre }} {{ t.temporada }}</option>{% endfor %}</select></form>{% endif %}
+{% if not torneo %}<div class="card card-mella p-4 text-center text-muted">Los playoffs aún no están activos. La administración los publicará con los clasificados al terminar la fase regular.</div>
+{% else %}
+
+{% if top4 %}
+<div class="card card-mella p-3 mb-3"><h5 class="oswald">Clasificados (top 4 regular)</h5>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>#</th><th>Equipo</th><th>W</th><th>L</th><th>DIF</th></tr></thead><tbody>
+{% for l in top4 %}<tr><td><span class="rank">{{ forloop.counter }}</span></td><td><strong>{{ l.equipo.nombre }}</strong></td><td>{{ l.ganados }}</td><td>{{ l.perdidos }}</td><td><strong>{% if l.dif > 0 %}+{% endif %}{{ l.dif }}</strong></td></tr>{% endfor %}
+</tbody></table></div>
+<small class="text-muted">Cruces: 1° vs 4° y 2° vs 3°. Los ganadores pasan a la final.</small></div>
+{% endif %}
+
+<h4 class="sect-title">Semifinales</h4>
+<div class="row g-2">
+{% for j in semis %}<div class="col-12 col-md-6"><div class="sched-card h-100">
+<div class="sched-head"><span class="sched-time">{{ j.fecha|date:"d M H:i" }}</span><span class="badge bg-warning text-dark">{{ j.serie|default:"SF" }}</span><span class="ms-auto">{% if j.estado == 'envivo' %}<span class="badge badge-live">EN VIVO</span>{% elif j.estado == 'final' %}<span class="badge bg-secondary">FINAL</span>{% else %}<span class="badge bg-light text-dark">PRÓXIMO</span>{% endif %}</span></div>
+<div class="sched-team">{% if j.local.logo %}<img src="{{ j.local.logo.url }}">{% endif %}<span class="tn">{{ j.local.nombre }}</span>{% if j.ganador and j.ganador.id == j.local.id %}<span class="badge bg-success">✓</span>{% endif %}<span class="sched-score {% if j.estado == 'final' and j.carreras_local > j.carreras_visita %}win{% endif %}">{{ j.carreras_local }}</span></div>
+<div class="sched-team">{% if j.visita.logo %}<img src="{{ j.visita.logo.url }}">{% endif %}<span class="tn">{{ j.visita.nombre }}</span>{% if j.ganador and j.ganador.id == j.visita.id %}<span class="badge bg-success">✓</span>{% endif %}<span class="sched-score {% if j.estado == 'final' and j.carreras_visita > j.carreras_local %}win{% endif %}">{{ j.carreras_visita }}</span></div>
+<details class="sched-det"><summary>Detalles</summary>{{ j.estadio }} <a href="{% url 'juego_detalle' j.id %}"><strong>Ver detalle + alineaciones →</strong></a></details>
+</div></div>{% empty %}<p class="text-muted">Semifinales sin programar todavía.</p>{% endfor %}
+</div>
+
+<h4 class="sect-title mt-4">Final</h4>
+<div class="row g-2">
+{% for j in final %}<div class="col-12 col-md-6"><div class="sched-card h-100" style="border:2px solid var(--mella-gold)">
+<div class="sched-head"><span class="sched-time">🏆 {{ j.fecha|date:"d M H:i" }}</span><span class="badge bg-warning text-dark">FINAL</span><span class="ms-auto">{% if j.estado == 'envivo' %}<span class="badge badge-live">EN VIVO</span>{% elif j.estado == 'final' %}<span class="badge bg-secondary">FINAL</span>{% else %}<span class="badge bg-light text-dark">PRÓXIMO</span>{% endif %}</span></div>
+<div class="sched-team">{% if j.local.logo %}<img src="{{ j.local.logo.url }}">{% endif %}<span class="tn">{{ j.local.nombre }}</span>{% if j.ganador and j.ganador.id == j.local.id %}<span class="badge bg-success">🏆</span>{% endif %}<span class="sched-score {% if j.estado == 'final' and j.carreras_local > j.carreras_visita %}win{% endif %}">{{ j.carreras_local }}</span></div>
+<div class="sched-team">{% if j.visita.logo %}<img src="{{ j.visita.logo.url }}">{% endif %}<span class="tn">{{ j.visita.nombre }}</span>{% if j.ganador and j.ganador.id == j.visita.id %}<span class="badge bg-success">🏆</span>{% endif %}<span class="sched-score {% if j.estado == 'final' and j.carreras_visita > j.carreras_local %}win{% endif %}">{{ j.carreras_visita }}</span></div>
+<details class="sched-det"><summary>Detalles</summary>{{ j.estadio }} <a href="{% url 'juego_detalle' j.id %}"><strong>Ver detalle + alineaciones →</strong></a></details>
+</div></div>{% empty %}<p class="text-muted">La final se crea cuando terminen ambas semifinales (desde Administración → Torneo).</p>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

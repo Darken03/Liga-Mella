@@ -1,0 +1,14 @@
+{% extends 'base_publica.html' %}{% block title %}Invitación{% endblock %}{% block content %}<div class="col-lg-7 mx-auto">
+<div class="card card-mella p-4">
+<span class="badge {% if s.estado == 'pendiente' %}bg-warning text-dark{% elif s.estado == 'aceptada' %}bg-success{% else %}bg-secondary{% endif %} mb-2">{{ s.estado|upper }}</span>
+<h3 class="oswald">{{ s.equipo.nombre }} te invita a unirte</h3>
+<p class="text-muted">Enviada por <strong>@{{ s.creado_por.username|default:"la liga" }}</strong> • {{ s.creada|date:"d M Y H:i" }}</p>
+{% if s.mensaje %}<div class="alert alert-warning"><strong>Mensaje del capitán:</strong><br>"{{ s.mensaje }}"</div>{% endif %}
+{% if s.estado == 'pendiente' %}
+<hr><h5 class="oswald">Aceptar invitación</h5>
+<p class="text-muted"><small>Por seguridad, escribe tu contraseña para confirmar que eres tú.</small></p>
+<form method="post" action="{% url 'sol_aceptar' s.id %}">{% csrf_token %}<label class="frm-label">Tu contraseña</label><input type="password" name="password" class="form-control mb-3" required autofocus><button class="btn btn-mella w-100">Aceptar y unirme al equipo</button></form>
+<form method="post" action="{% url 'sol_rechazar' s.id %}" class="mt-2">{% csrf_token %}<button class="btn btn-ghost w-100">Rechazar invitación</button></form>
+{% elif s.estado == 'aceptada' %}<div class="alert alert-success">Ya eres parte de {{ s.equipo.nombre }}. ¡Nos vemos en el play!</div>{% else %}<div class="alert alert-secondary">Rechazaste esta invitación.</div>{% endif %}
+<a href="{% url 'mis_solicitudes' %}">← Volver a mis solicitudes</a>
+</div></div>{% endblock %}

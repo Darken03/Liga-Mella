@@ -1,0 +1,34 @@
+{% extends 'base_admin.html' %}{% block content %}
+<div class="col-lg-7"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">{{ titulo }}</h3><a class="act view" href="{% url 'adm_torneos' %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}
+<div class="frm-sec"><i class="bi bi-calendar-event"></i> Torneo</div>
+<div class="row g-3">
+<div class="col-12"><label class="frm-label">Nombre</label>{{ form.nombre }}</div>
+<div class="col-md-6"><label class="frm-label">Temporada</label>{{ form.temporada }}</div>
+<div class="col-md-6"><label class="frm-label">Fecha de inicio</label>{{ form.fecha_inicio }}</div>
+<div class="col-12"><div class="form-check"><label class="form-check-label" for="{{ form.activo.id_for_label }}">Torneo activo</label>{{ form.activo }}</div></div>
+</div>
+{% if sorteo %}
+<div class="frm-sec"><i class="bi bi-shuffle"></i> Sorteo automático <small class="text-muted">— elige los equipos antes de crear</small></div>
+<div class="alert alert-info py-2"><small><strong>Formato:</strong> cada equipo juega 10 juegos en 5 domingos (ida y vuelta el mismo domingo contra el mismo rival, pero no seguidos: rotación de idas 9:00, 10:00, 11:00 y luego vueltas 12:00, 13:00, 14:00). Los horarios rotan cada domingo para que ningún equipo repita siempre la misma hora. 6 partidos por domingo. Si luego llegan equipos nuevos, podrás regenerar el sorteo desde el detalle del torneo.</small></div>
+<div class="col-md-6 mb-3"><label class="frm-label">Hora del primer juego (cada juego dura 1 hora)</label><input type="number" name="hora_inicio" min="6" max="18" step="1" value="{{ hora_ini|default:9 }}" class="form-control"></div>
+<div class="row g-2 mb-2"><div class="col-12 d-flex gap-2"><button type="button" class="btn btn-sm btn-ghost" id="eqTodos">Todos</button><button type="button" class="btn btn-sm btn-ghost" id="eqNinguno">Ninguno</button><small class="text-muted align-self-center ms-1">Desmarca los que no juegan este torneo.</small></div>
+{% for e in equipos %}<div class="col-12 col-md-6"><div class="form-check border rounded p-2"><input class="form-check-input ms-1 eq-check" type="checkbox" name="equipos" value="{{ e.id }}" id="eq{{ e.id }}" checked><label class="form-check-label ms-1" for="eq{{ e.id }}"><strong>{{ e.nombre }}</strong> <small class="text-muted">{{ e.sigla }} · {{ e.jugadores.count }} jugadores</small></label></div></div>{% empty %}<p class="text-muted">No hay equipos creados.</p>{% endfor %}
+</div>
+<div class="frm-sec"><i class="bi bi-flag"></i> Juego inaugural <small class="text-muted">— opcional: los finalistas abren el torneo</small></div>
+<div class="alert alert-light py-2"><small>Tradición: los dos equipos de la final pasada juegan el <strong>primer partido</strong> (primer domingo a la primera hora, local/visita como los elijas). Cuenta como juego normal: el día 1 sigue con sus 6 juegos y el resto del sorteo se arma con los demás equipos. Déjalo vacío para sorteo totalmente al azar.</small></div>
+<div class="row g-2 mb-2">
+<div class="col-md-6"><label class="frm-label">Local inaugural</label><select name="inaugural_local" class="form-select"><option value="">—</option>{% for e in equipos %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}</select></div>
+<div class="col-md-6"><label class="frm-label">Visita inaugural</label><select name="inaugural_visita" class="form-select"><option value="">—</option>{% for e in equipos %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}</select></div>
+</div>
+<script>
+(function(){
+var boxes=function(){return document.querySelectorAll('.eq-check');};
+document.getElementById('eqTodos').addEventListener('click',function(){boxes().forEach(function(b){b.checked=true;});});
+document.getElementById('eqNinguno').addEventListener('click',function(){boxes().forEach(function(b){b.checked=false;});});
+})();
+</script>
+{% endif %}
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_torneos' %}">Cancelar</a><button class="btn btn-mella btn-add"><i class="bi bi-check-lg"></i>Guardar</button></div>
+</form></div></div>{% endblock %}

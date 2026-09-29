@@ -1,0 +1,48 @@
+{% extends 'base_publica.html' %}{% block title %}Jornada | Liga Mella{% endblock %}{% block content %}
+<style>
+.sched-rot{display:flex;align-items:center;gap:8px;margin:16px 0 8px}
+.sched-rot h5{font-family:Oswald;font-style:italic;font-weight:700;letter-spacing:2px;margin:0;position:relative;padding-left:14px}
+.sched-rot h5::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:6px;background:linear-gradient(180deg,var(--mella-gold),var(--mella-red));transform:skewX(-12deg);border-radius:3px}
+.sched-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 20px rgba(10,26,58,.10);border:1px solid var(--mella-line)}
+.sched-head{display:flex;align-items:center;gap:6px;background:var(--mella-navy);color:#fff;padding:6px 10px;font-size:.78rem}
+.sched-time{font-family:Oswald;font-weight:700;font-size:1rem;letter-spacing:1px;color:var(--mella-gold)}
+.sched-team{display:flex;align-items:center;gap:8px;padding:7px 10px}
+.sched-team + .sched-team{border-top:1px dashed var(--mella-line)}
+.sched-team img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid var(--mella-gold);flex-shrink:0}
+.sched-team .tn{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sched-score{margin-left:auto;font-family:Oswald;font-weight:700;font-size:1.2rem;background:#f1f5f9;border-radius:8px;min-width:34px;text-align:center;padding:0 6px}
+.sched-score.win{background:var(--mella-gold)}
+.sched-det{padding:2px 10px 8px;font-size:.8rem;color:#64748b}
+.sched-det summary{cursor:pointer;font-weight:700;color:var(--mella-navy);font-size:.78rem}
+</style>
+<div class="jornada-hero mb-2"><h2>JORNADA</h2><span class="jornada-sub">DE SOFTBALL</span></div>
+<div class="card card-mella p-3 mb-1 mt-3">
+<div class="d-flex justify-content-between align-items-center gap-2">
+{% if dom_ant %}<a class="btn btn-ghost btn-sm" href="?d={{ dom_ant|date:'Y-m-d' }}">◀ {{ dom_ant|date:"d M" }}</a>{% else %}<span></span>{% endif %}
+<div class="text-center"><h5 class="oswald mb-0">Domingo {{ sel|date:"d M" }}{% if nj %} <small class="text-muted">· Jornada {{ nj }}</small>{% endif %}</h5><small class="text-muted">{{ juegos_dia|length }} juego(s) · doble cartelera ida y vuelta · {{ n_fin }}/{{ juegos_dia|length }} finalizados</small></div>
+{% if dom_sig %}<a class="btn btn-ghost btn-sm" href="?d={{ dom_sig|date:'Y-m-d' }}">{{ dom_sig|date:"d M" }} ▶</a>{% else %}<span></span>{% endif %}
+</div>
+<div class="d-flex gap-2 justify-content-center align-items-center flex-wrap mt-2">
+<a class="btn btn-sm {% if sel == hoy %}btn-gold{% else %}btn-ghost{% endif %}" href="?d={{ hoy|date:'Y-m-d' }}">Hoy</a>
+{% for d in dias %}<a class="btn btn-sm {% if d == sel %}btn-navy{% else %}btn-ghost{% endif %}" href="?d={{ d|date:'Y-m-d' }}">{{ d|date:"d M" }}</a>{% endfor %}
+{% if est_dia == 'envivo' %}<span class="badge badge-live">EN JUEGO</span>{% elif est_dia == 'final' %}<span class="badge bg-secondary">JORNADA FINALIZADA</span>{% endif %}
+</div>
+{% if juegos_dia %}<div class="progress mt-2" style="height:6px"><div class="progress-bar bg-success" style="width:{% widthratio n_fin juegos_dia|length 100 %}%"></div></div>{% endif %}
+</div>
+{% if juegos_dia %}
+{% if rot_ida %}<div class="sched-rot"><h5>1.ª ROTACIÓN · IDA</h5><small class="text-muted">{{ rot_ida.0.fecha|date:"H:i" }} – {{ rot_ida|last|date:"H:i" }}</small></div>
+<div class="row g-2">{% for j in rot_ida %}<div class="col-12 col-md-6 col-lg-4"><div class="sched-card h-100">
+<div class="sched-head"><span class="sched-time">⏰ {{ j.fecha|date:"H:i" }}</span><span class="badge bg-warning text-dark">IDA</span>{% if j.fase != 'regular' %}<span class="badge bg-danger">{{ j.get_fase_display }} {{ j.serie }}</span>{% elif j.serie %}<span class="badge bg-success">INAUGURAL</span>{% endif %}<span class="ms-auto">{% if j.estado == 'envivo' %}<span class="badge badge-live">EN VIVO</span>{% elif j.estado == 'final' %}<span class="badge bg-secondary">FINAL</span>{% else %}<span class="badge bg-light text-dark">PRÓXIMO</span>{% endif %}</span></div>
+<div class="sched-team">{% if j.local.logo %}<img src="{{ j.local.logo.url }}">{% endif %}<span class="tn">{{ j.local.nombre }}</span><span class="sched-score {% if j.estado == 'final' and j.carreras_local > j.carreras_visita %}win{% endif %}">{{ j.carreras_local }}</span></div>
+<div class="sched-team">{% if j.visita.logo %}<img src="{{ j.visita.logo.url }}">{% endif %}<span class="tn">{{ j.visita.nombre }}</span><span class="sched-score {% if j.estado == 'final' and j.carreras_visita > j.carreras_local %}win{% endif %}">{{ j.carreras_visita }}</span></div>
+<details class="sched-det"><summary>Detalles</summary>{{ j.estadio }} · Abr: {{ j.local.abridor.nombre|default:"—" }} vs {{ j.visita.abridor.nombre|default:"—" }}{% if j.estado == 'envivo' %} · {{ j.inning_actual }}{% endif %}<br><small>Alineaciones: {{ j.local.sigla }} ({{ j.n_alin_local|default:"0" }}{% if j.alin_local_prestada %}*{% endif %}) · {{ j.visita.sigla }} ({{ j.n_alin_visita|default:"0" }}{% if j.alin_visita_prestada %}*{% endif %}){% if j.alin_local_prestada or j.alin_visita_prestada %} <em>*del otro juego del día</em>{% endif %}</small><br><a href="{% url 'juego_detalle' j.id %}"><strong>Ver detalle + alineaciones →</strong></a></details>
+</div></div>{% endfor %}</div>{% endif %}
+{% if rot_vuelta %}<div class="sched-rot"><h5>2.ª ROTACIÓN · VUELTA</h5><small class="text-muted">{{ rot_vuelta.0.fecha|date:"H:i" }} – {{ rot_vuelta|last|date:"H:i" }}</small></div>
+<div class="row g-2">{% for j in rot_vuelta %}<div class="col-12 col-md-6 col-lg-4"><div class="sched-card h-100">
+<div class="sched-head"><span class="sched-time">⏰ {{ j.fecha|date:"H:i" }}</span><span class="badge bg-info text-dark">VUELTA</span>{% if j.fase != 'regular' %}<span class="badge bg-danger">{{ j.get_fase_display }} {{ j.serie }}</span>{% elif j.serie %}<span class="badge bg-success">INAUGURAL</span>{% endif %}<span class="ms-auto">{% if j.estado == 'envivo' %}<span class="badge badge-live">EN VIVO</span>{% elif j.estado == 'final' %}<span class="badge bg-secondary">FINAL</span>{% else %}<span class="badge bg-light text-dark">PRÓXIMO</span>{% endif %}</span></div>
+<div class="sched-team">{% if j.local.logo %}<img src="{{ j.local.logo.url }}">{% endif %}<span class="tn">{{ j.local.nombre }}</span><span class="sched-score {% if j.estado == 'final' and j.carreras_local > j.carreras_visita %}win{% endif %}">{{ j.carreras_local }}</span></div>
+<div class="sched-team">{% if j.visita.logo %}<img src="{{ j.visita.logo.url }}">{% endif %}<span class="tn">{{ j.visita.nombre }}</span><span class="sched-score {% if j.estado == 'final' and j.carreras_visita > j.carreras_local %}win{% endif %}">{{ j.carreras_visita }}</span></div>
+<details class="sched-det"><summary>Detalles</summary>{{ j.estadio }} · Abr: {{ j.local.abridor.nombre|default:"—" }} vs {{ j.visita.abridor.nombre|default:"—" }}{% if j.estado == 'envivo' %} · {{ j.inning_actual }}{% endif %}<br><small>Alineaciones: {{ j.local.sigla }} ({{ j.n_alin_local|default:"0" }}{% if j.alin_local_prestada %}*{% endif %}) · {{ j.visita.sigla }} ({{ j.n_alin_visita|default:"0" }}{% if j.alin_visita_prestada %}*{% endif %}){% if j.alin_local_prestada or j.alin_visita_prestada %} <em>*del otro juego del día</em>{% endif %}</small><br><a href="{% url 'juego_detalle' j.id %}"><strong>Ver detalle + alineaciones →</strong></a></details>
+</div></div>{% endfor %}</div>{% endif %}
+{% else %}<p class="text-muted text-center mt-3">Sin juegos este domingo.</p>{% endif %}
+{% endblock %}

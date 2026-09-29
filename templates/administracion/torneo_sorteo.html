@@ -1,0 +1,29 @@
+{% extends 'base_admin.html' %}{% block content %}
+<div class="col-lg-8"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">Sorteo · {{ torneo.nombre }}</h3><a class="act view" href="{% url 'adm_torneo_detalle' torneo.id %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+{% if en_juego %}<div class="alert alert-warning">Ya hay juegos en vivo o finalizados en este torneo: el sorteo está <strong>bloqueado</strong> para no borrar resultados.</div>{% else %}
+<div class="alert alert-info py-2"><small><strong>Formato:</strong> ida y vuelta el mismo domingo contra el mismo rival, sin jugar seguidos: rotación de idas y luego de vueltas (bloques de 1 hora), con horarios rotados cada domingo. Con 6 equipos: 10 juegos por equipo en 5 domingos, 6 partidos por domingo. Úsalo si llegan equipos nuevos y el torneo aún no empezó.</small></div>
+<form method="post">{% csrf_token %}
+<div class="row g-3 mb-3">
+<div class="col-md-6"><label class="frm-label">Primer domingo</label><input type="date" name="fecha_inicio" value="{{ fecha_ini }}" class="form-control"></div>
+<div class="col-md-6"><label class="frm-label">Hora del primer juego</label><input type="number" name="hora_inicio" min="6" max="18" step="1" value="9" class="form-control"></div>
+</div>
+<div class="row g-2 mb-3"><div class="col-12 d-flex gap-2"><button type="button" class="btn btn-sm btn-ghost" id="eqTodos">Todos</button><button type="button" class="btn btn-sm btn-ghost" id="eqNinguno">Ninguno</button></div>
+{% for e in equipos %}<div class="col-12 col-md-6"><div class="form-check border rounded p-2"><input class="form-check-input ms-1 eq-check" type="checkbox" name="equipos" value="{{ e.id }}" id="eq{{ e.id }}" {% if e.id in dentro %}checked{% endif %}><label class="form-check-label ms-1" for="eq{{ e.id }}"><strong>{{ e.nombre }}</strong> <small class="text-muted">{{ e.sigla }}</small></label></div></div>{% endfor %}
+</div>
+<div class="frm-sec"><i class="bi bi-flag"></i> Juego inaugural <small class="text-muted">— opcional</small></div>
+<div class="row g-2 mb-3">
+<div class="col-md-6"><label class="frm-label">Local inaugural</label><select name="inaugural_local" class="form-select"><option value="">—</option>{% for e in equipos %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}</select></div>
+<div class="col-md-6"><label class="frm-label">Visita inaugural</label><select name="inaugural_visita" class="form-select"><option value="">—</option>{% for e in equipos %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}</select></div>
+</div>
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_torneo_detalle' torneo.id %}">Cancelar</a><button class="btn btn-mella btn-add" onclick="return confirm('Se borrarán los juegos programados y se generará el calendario de nuevo. ¿Seguir?')"><i class="bi bi-shuffle"></i>Generar sorteo</button></div>
+</form>
+<script>
+(function(){
+var boxes=function(){return document.querySelectorAll('.eq-check');};
+document.getElementById('eqTodos').addEventListener('click',function(){boxes().forEach(function(b){b.checked=true;});});
+document.getElementById('eqNinguno').addEventListener('click',function(){boxes().forEach(function(b){b.checked=false;});});
+})();
+</script>
+{% endif %}
+</div></div>{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'base_anotador.html' %}{% block content %}
+<style>
+.sb-top{background:linear-gradient(160deg,#101f3c,#050b1d);border:1px solid rgba(234,179,8,.35);border-radius:16px;color:#fff;box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.sb-team{display:flex;align-items:center;gap:10px}
+.sb-logo{width:52px;height:52px;border-radius:50%;background:var(--tc,#0A1A3A);color:#fff;font-family:Oswald;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--mella-gold);font-size:1.2rem;flex-shrink:0}
+.sb-runs{font-family:Oswald;font-size:3rem;font-weight:700;line-height:1}
+.sb-hits{font-size:.8rem;color:#cbd5e1}
+.count-dots{display:inline-flex;gap:4px;margin-left:6px}
+.count-dots i{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.2);display:inline-block}
+.count-dots i.on-o{background:#dc2626;box-shadow:0 0 8px #dc2626}
+.box-mlb{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+.box-mlb table{width:100%;border-collapse:collapse;font-size:.85rem;margin:0}
+.box-mlb th,.box-mlb td{border:1px solid #e5e7eb;padding:6px 4px;text-align:center;min-width:30px}
+.box-mlb thead th{background:#0A1A3A;color:#fff;font-family:Oswald;font-size:.75rem}
+.box-mlb td.cur{background:#fef3c7;font-weight:800}
+.box-mlb td.team{text-align:left;font-weight:700;padding-left:10px;min-width:120px}
+.ctl-btn{min-height:52px;font-weight:800;font-family:Oswald;text-transform:uppercase}
+.res-btn{min-height:48px;font-weight:800;position:relative;transition:transform .12s,box-shadow .12s}
+.res-btn.sel{outline:none;border:2px solid var(--mella-gold);transform:translateY(-2px) scale(1.04);box-shadow:0 0 0 3px rgba(234,179,8,.45),0 0 18px rgba(234,179,8,.8);animation:selpulse 1.4s infinite}
+.res-btn.sel::after{content:"✓";position:absolute;top:-11px;right:-7px;width:24px;height:24px;border-radius:50%;background:var(--mella-gold);color:#111;font-size:.85rem;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+@keyframes selpulse{50%{box-shadow:0 0 0 6px rgba(234,179,8,.22),0 0 28px rgba(234,179,8,1)}}
+.lin-row.actual{background:linear-gradient(90deg,#dcfce7,#fff)!important;border-left:5px solid #16a34a}
+.bat-now{display:inline-flex;align-items:center;justify-content:center;font-size:1.3rem;animation:batpulse 1.2s infinite}
+@keyframes batpulse{50%{transform:scale(1.25) rotate(-12deg)}}
+.ord-now{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#16a34a;color:#fff;font-family:Oswald;font-weight:700}
+.ord-next{background:#eef2f7;color:var(--mella-navy)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:32px;height:32px;border-radius:8px;border:1px solid var(--mella-line);background:#fff;font-weight:800}
+.turn-card{border:3px solid #16a34a;border-radius:16px;background:#f0fdf4}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+<div><a href="{% url 'anotador_lista' %}" class="text-white text-decoration-none">← Hoy</a>
+<span class="badge bg-secondary ms-2" id="stEstado">{{ juego_obj.estado }}</span>
+<small class="text-white-50 ms-2">{{ juego_obj.torneo.nombre }} • {{ juego_obj.estadio }} • {{ juego_obj.fecha|date:"d M H:i" }}</small>{% if juego_obj.fase != 'regular' %} <span class="badge bg-danger ms-2">{{ juego_obj.get_fase_display }} {{ juego_obj.serie }}</span>{% endif %}</div>
+<div class="d-flex gap-2"><button class="btn btn-sm btn-ghost" id="btnRefresh">↻ Actualizar</button><button class="btn btn-sm btn-ghost" id="btnUndo">↩ Deshacer último</button></div>
+</div>
+
+<!-- MARCADOR SUPERIOR -->
+<div class="sb-top p-3 mb-3">
+<div class="row align-items-center text-center g-2">
+<div class="col-5"><div class="sb-team justify-content-center"><span class="sb-logo" style="--tc:{{ juego_obj.visita.color }}">{{ juego_obj.visita.sigla|slice:":2" }}</span><span><strong id="sbVisita">{{ juego_obj.visita.nombre }}</strong><br><small class="text-white-50">VISITA • batea en ALTA</small></span></div><div class="sb-runs" id="sbV">{{ juego_obj.carreras_visita }}</div><div class="sb-hits">H <span id="sbHv">0</span></div></div>
+<div class="col-2"><div class="badge badge-live mb-1" id="sbInning">1RA ALTA</div><div><span class="badge bg-warning text-dark" id="sbTurno">BATEA VISITA</span></div><div class="mt-2"><small>OUTS <span id="nO">0</span> <span class="count-dots" id="dotO"><i></i><i></i></span></small></div></div>
+<div class="col-5"><div class="sb-team justify-content-center"><span><strong id="sbLocal">{{ juego_obj.local.nombre }}</strong><br><small class="text-white-50">LOCAL • batea en BAJA</small></span><span class="sb-logo" style="--tc:{{ juego_obj.local.color }}">{{ juego_obj.local.sigla|slice:":2" }}</span></div><div class="sb-runs" id="sbL">{{ juego_obj.carreras_local }}</div><div class="sb-hits">H <span id="sbHl">0</span></div></div>
+</div>
+<div class="text-center mt-2"><small class="text-white-50">Al bate: <strong id="sbBat">—</strong> • Pitcher (<span id="sbPEq">—</span>): <strong id="sbPit">—</strong></small>
+<span class="ms-2"><button class="btn btn-sm btn-gold" id="btnIniciar">▶ Play</button> <button class="btn btn-sm btn-mella" id="btnFinalizar">■ Final</button></span></div>
+</div>
+
+<!-- BOX MLB -->
+<div class="box-mlb mb-3"><table><thead><tr id="boxHead"><th>EQ</th></tr></thead><tbody><tr id="boxVis"></tr><tr id="boxLoc"></tr></tbody></table></div>
+
+<!-- CONTROL DE TURNO: bateador actual -->
+<div class="card turn-card p-3 mb-3"><h5 class="oswald mb-1">🏏 Control de turno • <span id="turnBat">—</span></h5>
+<small class="text-muted" id="turnSub">Dale Play y registra lo que haga el bateador con el bate verde. Al registrar, el bate pasa solo al siguiente. A los 3 outs cambia de equipo guardando quién quedó al bate.</small>
+<div class="row g-2 align-items-end mt-1">
+<div class="col-6 col-md-2"><label class="frm-label">CI (impulsadas)</label><div class="stepper"><button type="button" id="rbiM">−</button><input id="fRbi" type="number" class="form-control text-center" value="0" min="0" max="6"><button type="button" id="rbiP">+</button></div></div>
+<div class="col-6 col-md-2"><label class="frm-label">Carreras jugada</label><div class="stepper"><button type="button" id="cM">−</button><input id="fC" type="number" class="form-control text-center" value="0" min="0" max="6"><button type="button" id="cP">+</button></div></div>
+<div class="col-12 col-md-8"><label class="frm-label"><input type="checkbox" id="fAnoto"> El bateador anotó (R)</label><br><small class="text-muted">HR ya suma R+CI solo. Todo se guarda automático en las estadísticas del jugador; el ponche (K) le suma al pitcher.</small></div>
+</div>
+<div class="d-flex flex-wrap gap-2 mt-2">
+<button class="btn btn-success res-btn" data-res="hit">HIT 1B</button>
+<button class="btn btn-navy res-btn" data-res="doble">DOBLE 2B</button>
+<button class="btn btn-navy res-btn" data-res="triple">TRIPLE 3B</button>
+<button class="btn btn-gold res-btn" data-res="hr">💥 HR</button>
+<button class="btn btn-mella res-btn" data-res="out">OUT</button>
+<button class="btn btn-dark res-btn" data-res="k">PONCHE K</button>
+<button class="btn btn-ghost res-btn" data-res="bb">BB</button>
+<button class="btn btn-ghost res-btn" data-res="hbp">GOLPE</button>
+<button class="btn btn-ghost res-btn" data-res="sf">SAC SF</button>
+<button class="btn btn-ghost res-btn" data-res="error">ERROR</button>
+</div>
+<button class="btn btn-mella w-100 mt-2 ctl-btn" id="btnRegistrar">Registrar turno → el bate avanza solo</button>
+</div>
+
+<!-- LINEUPS -->
+<div class="row g-3">
+<div class="col-12 col-lg-6"><div class="card card-mella p-3"><h5 class="oswald" id="tVis">Lineup visita</h5>
+<div class="mb-2"><label class="frm-label">Pitcher que defiende (local)</label><div class="d-flex gap-2"><select id="pitV" class="form-select form-select-sm"></select><button class="btn btn-sm btn-navy" id="setPitV">OK</button></div></div>
+<div class="table-responsive"><table class="tbl"><thead><tr><th></th><th>#</th><th>Bateador</th><th>Pos</th><th>AB-H-HR-CI</th></tr></thead><tbody id="linVis"></tbody></table></div></div></div>
+<div class="col-12 col-lg-6"><div class="card card-mella p-3"><h5 class="oswald" id="tLoc">Lineup local</h5>
+<div class="mb-2"><label class="frm-label">Pitcher que defiende (visita)</label><div class="d-flex gap-2"><select id="pitL" class="form-select form-select-sm"></select><button class="btn btn-sm btn-navy" id="setPitL">OK</button></div></div>
+<div class="table-responsive"><table class="tbl"><thead><tr><th></th><th>#</th><th>Bateador</th><th>Pos</th><th>AB-H-HR-CI</th></tr></thead><tbody id="linLoc"></tbody></table></div></div></div>
+</div>
+
+<!-- AJUSTES -->
+<div class="card card-mella p-3 mt-3"><h5 class="oswald">Ajustes <small class="text-muted">— correcciones e inning manual</small></h5>
+<div class="row g-2">
+<div class="col-4 col-md-2"><button class="btn btn-ghost w-100 ctl-btn" data-ctl="cambiar_mitad">⇄ Alta/Baja</button></div>
+<div class="col-4 col-md-2"><button class="btn btn-ghost w-100 ctl-btn" data-ctl="mas_inning">INN +</button></div>
+<div class="col-4 col-md-2"><button class="btn btn-ghost w-100 ctl-btn" data-ctl="menos_inning">INN −</button></div>
+<div class="col-6 col-md-3"><button class="btn btn-success w-100 ctl-btn" data-ctl="carrera_local">+1 Local</button></div>
+<div class="col-6 col-md-3"><button class="btn btn-outline-danger w-100 ctl-btn" data-ctl="carrera_visita">+1 Visita</button></div>
+<div class="col-6 col-md-3"><button class="btn btn-ghost w-100 ctl-btn" data-ctl="quitar_carrera_local">−1 Local</button></div>
+<div class="col-6 col-md-3"><button class="btn btn-ghost w-100 ctl-btn" data-ctl="quitar_carrera_visita">−1 Visita</button></div>
+</div></div>
+
+<div class="card card-mella p-3 mt-3"><h5 class="oswald">Últimas jugadas</h5><div id="feed"></div></div>
+
+<script>
+(function(){
+var PK="{{ juego_obj.id }}";
+var U_EST="/anotador/juego/"+PK+"/api/estado/", U_TUR="/anotador/juego/"+PK+"/api/turno/",
+    U_CTL="/anotador/juego/"+PK+"/api/control/", U_DES="/anotador/juego/"+PK+"/api/deshacer/", U_PIT="/anotador/juego/"+PK+"/api/pitcher/";
+function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(b||{})}).then(function(r){return r.json()});}
+var S=null, SEL_RES='hit';
+function dots(id,n,max,cls){var box=document.getElementById(id);box.innerHTML='';for(var i=0;i<max;i++){var s=document.createElement('i');if(i<n)s.className=cls;box.appendChild(s);}}
+function render(st){
+  S=st; var j=st.juego;
+  document.getElementById('stEstado').textContent=j.estado;
+  document.getElementById('sbV').textContent=j.cv; document.getElementById('sbL').textContent=j.cl;
+  document.getElementById('sbHv').textContent=st.tot_hv; document.getElementById('sbHl').textContent=st.tot_hl;
+  document.getElementById('sbInning').textContent=j.inning_txt;
+  document.getElementById('sbTurno').textContent='BATEA '+(j.batea==='local'?'LOCAL':'VISITA');
+  document.getElementById('nO').textContent=j.outs;
+  dots('dotO',j.outs,2,'on-o');
+  document.getElementById('sbBat').textContent=st.bateador_actual?(st.bateador_actual.nombre+' #'+st.bateador_actual.dorsal+' ('+st.bateador_actual.orden+'°)'):'—';
+  document.getElementById('turnBat').textContent=st.bateador_actual?(st.bateador_actual.nombre+' #'+st.bateador_actual.dorsal+' • orden '+st.bateador_actual.orden+' • '+(j.batea==='local'?j.local.nombre:j.visita.nombre)):'—';
+  document.getElementById('sbPit').textContent=st.pitcher?st.pitcher.nombre:'—';
+  document.getElementById('sbPEq').textContent=st.pitcher?st.pitcher.equipo:'—';
+  var h='<th>EQ</th>'+st.entradas.map(function(e){return '<th'+(e.n===j.inning_num?' style="background:var(--mella-gold)"':'')+'>'+e.n+'</th>'}).join('')+'<th>C</th><th>H</th>';
+  document.getElementById('boxHead').innerHTML=h;
+  document.getElementById('boxVis').innerHTML='<td class="team">'+j.visita.sigla+'</td>'+st.entradas.map(function(e){return '<td class="'+(e.n===j.inning_num&&j.mitad==='alta'?'cur':'')+'">'+e.cv+'</td>'}).join('')+'<td><strong>'+j.cv+'</strong></td><td>'+st.tot_hv+'</td>';
+  document.getElementById('boxLoc').innerHTML='<td class="team">'+j.local.sigla+'</td>'+st.entradas.map(function(e){return '<td class="'+(e.n===j.inning_num&&j.mitad==='baja'?'cur':'')+'">'+e.cl+'</td>'}).join('')+'<td><strong>'+j.cl+'</strong></td><td>'+st.tot_hl+'</td>';
+  document.getElementById('tVis').textContent='Lineup visita • '+j.visita.nombre+(j.batea==='visita'?' • BATEANDO':' • EN ESPERA');
+  document.getElementById('tLoc').textContent='Lineup local • '+j.local.nombre+(j.batea==='local'?' • BATEANDO':' • EN ESPERA');
+  function row(p, batea){
+    var mark = p.actual ? '<span class="bat-now" title="Le toca batear">🏏</span>' : '<span class="ord-next ord-now" style="font-size:.8rem">'+p.orden+'</span>';
+    var espera = (!p.actual && !batea) ? ' <span class="badge bg-secondary">en espera</span>' : '';
+    return '<tr class="lin-row'+(p.actual?' actual':'')+'"><td>'+mark+'</td><td><strong>'+p.orden+'</strong></td><td>'+p.nombre+' #'+p.dorsal+espera+'</td><td><span class="badge bg-dark">'+p.pos+'</span></td><td><small>'+p.ab+'-'+p.h+' • HR '+p.hr+' • CI '+p.rbi+'</small></td></tr>';
+  }
+  var bateaLoc = (j.batea==='local');
+  document.getElementById('linVis').innerHTML=st.lineup_visita.map(function(p){return row(p,!bateaLoc)}).join('')||'<tr><td colspan="5" class="text-muted">Sin lineup: el capitán debe alinear.</td></tr>';
+  document.getElementById('linLoc').innerHTML=st.lineup_local.map(function(p){return row(p,bateaLoc)}).join('')||'<tr><td colspan="5" class="text-muted">Sin lineup.</td></tr>';
+  function fillPit(id, ros){var s=document.getElementById(id);if(!ros||!ros.length){s.innerHTML='';return;}var cur=s.value;s.innerHTML=ros.map(function(p){return '<option value="'+p.id+'">'+p.nombre+' #'+p.dorsal+'</option>'}).join('');if(cur)s.value=cur;}
+  if(st.roster_visita) fillPit('pitV', st.roster_visita);
+  if(st.roster_local) fillPit('pitL', st.roster_local);
+  document.getElementById('feed').innerHTML=st.ultimas.map(function(x){return '<div><small>'+x.inn+' — '+x.txt+'</small></div>'}).join('')||'<small class="text-muted">Sin jugadas.</small>';
+}
+function load(){fetch(U_EST).then(function(r){return r.json()}).then(render);}
+document.querySelectorAll('[data-ctl]').forEach(function(b){b.addEventListener('click',function(){
+  post(U_CTL,{accion:b.dataset.ctl}).then(function(d){
+    if(!d.ok){alert(d.error||'Error');return;}
+    render(d.state);
+  });
+});});
+function setRes(r){SEL_RES=r;document.querySelectorAll('.res-btn').forEach(function(b){b.classList.toggle('sel',b.dataset.res===r);});if(r==='hr'){document.getElementById('fRbi').value=1;document.getElementById('fC').value=1;document.getElementById('fAnoto').checked=true;}if(r==='out'||r==='k'){document.getElementById('fRbi').value=0;document.getElementById('fC').value=0;}}
+document.querySelectorAll('.res-btn').forEach(function(b){b.addEventListener('click',function(){setRes(b.dataset.res);});});
+setRes('hit');
+function step(id,d){var el=document.getElementById(id);el.value=Math.max(0,Math.min(6,(parseInt(el.value||0)+d)));}
+document.getElementById('rbiM').addEventListener('click',function(){step('fRbi',-1)});document.getElementById('rbiP').addEventListener('click',function(){step('fRbi',1)});
+document.getElementById('cM').addEventListener('click',function(){step('fC',-1)});document.getElementById('cP').addEventListener('click',function(){step('fC',1)});
+document.getElementById('btnRegistrar').addEventListener('click',function(){
+  var b={resultado:SEL_RES,rbi:document.getElementById('fRbi').value,carreras:document.getElementById('fC').value,anoto:document.getElementById('fAnoto').checked?1:0};
+  post(U_TUR,b).then(function(d){if(!d.ok){alert(d.error||'Error');return;}render(d.state);document.getElementById('fAnoto').checked=false;if(d.cambio_inning)alert('¡3 outs! Cambio de equipo. Cada lineup guarda quién quedó al bate.');});
+});
+document.getElementById('btnUndo').addEventListener('click',function(){if(!confirm('¿Deshacer último turno (revierte stats)?'))return;post(U_DES,{}).then(function(d){if(!d.ok){alert(d.error);return;}render(d.state);});});
+document.getElementById('btnRefresh').addEventListener('click',load);
+document.getElementById('btnIniciar').addEventListener('click',function(){post(U_CTL,{accion:'iniciar'}).then(function(d){render(d.state);});});
+document.getElementById('btnFinalizar').addEventListener('click',function(){if(!confirm('¿Finalizar juego? Actualiza tabla y notifica.'))return;post(U_CTL,{accion:'finalizar'}).then(function(d){if(!d.ok){alert(d.error);return;}render(d.state);alert('Juego finalizado');});});
+document.getElementById('setPitV').addEventListener('click',function(){var eq=S.juego.visita.id, jg=document.getElementById('pitV').value;post(U_PIT,{equipo_id:eq,jugador_id:jg}).then(function(d){render(d.state);});});
+document.getElementById('setPitL').addEventListener('click',function(){var eq=S.juego.local.id, jg=document.getElementById('pitL').value;post(U_PIT,{equipo_id:eq,jugador_id:jg}).then(function(d){render(d.state);});});
+load(); setInterval(load, 20000);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends 'base_admin.html' %}{% block content %}
+<style>
+.wp-bar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:4px;background:#f1f5f9;border:1px solid var(--mella-line);border-radius:10px 10px 0 0;padding:8px}
+.wp-bar button,.wp-bar select{border:1px solid var(--mella-line);background:#fff;border-radius:8px;padding:5px 9px;font-size:.85rem;cursor:pointer}
+.wp-bar button:hover,.wp-bar button.on{background:var(--mella-navy);color:#fff}
+.wp-bar .sep{width:1px;background:var(--mella-line);margin:2px 4px}
+#wpEditor{min-height:320px;border:1px solid var(--mella-line);border-top:none;border-radius:0 0 10px 10px;padding:16px;background:#fff;outline:none}
+#wpEditor:focus{border-color:var(--mella-gold)}
+#wpEditor img{max-width:100%;border-radius:10px;height:auto;cursor:pointer}
+#wpEditor img.sel{outline:3px solid var(--mella-gold);outline-offset:2px}
+#wpImgHint{display:none;font-size:.8rem;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:4px 10px;margin-top:6px}
+#wpEditor h2{font-family:Oswald;text-transform:uppercase}
+#wpEditor blockquote{border-left:4px solid var(--mella-gold);margin:10px 0;padding:6px 12px;color:#475569;background:#fffbeb}
+</style>
+<div class="col-lg-10"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">{{ titulo }}</h3><a class="act view" href="{% url 'adm_noticias' %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+<form method="post" enctype="multipart/form-data" id="noticiaForm">{% csrf_token %}{{ form.non_field_errors }}
+<div class="frm-sec"><i class="bi bi-newspaper"></i> Titular</div>
+<div class="row g-3">
+<div class="col-md-8"><label class="frm-label">Título</label>{{ form.titulo }}</div>
+<div class="col-md-4"><label class="frm-label">Etiqueta</label>{{ form.torneo_tag }}</div>
+<div class="col-12"><label class="frm-label">Resumen</label>{{ form.resumen }}</div>
+<div class="col-12"><label class="frm-label">Cuerpo de la revista <small class="text-muted">— escribe como en WordPress: títulos, tamaños y fotos donde quieras</small></label>
+<div style="display:none">{{ form.cuerpo }}</div>
+<div class="wp-bar" id="wpBar">
+<button type="button" data-cmd="formatBlock" data-v="p" title="Párrafo">P</button>
+<button type="button" data-cmd="formatBlock" data-v="h2" title="Título grande"><strong>T1</strong></button>
+<button type="button" data-cmd="formatBlock" data-v="h3" title="Título mediano"><strong>T2</strong></button>
+<button type="button" data-cmd="formatBlock" data-v="h4" title="Título pequeño"><strong>T3</strong></button>
+<select id="wpSize" title="Tamaño de letra"><option value="">Tamaño…</option><option value="14px">Pequeña</option><option value="16px">Normal</option><option value="20px">Grande</option><option value="24px">Enorme</option></select>
+<span class="sep"></span>
+<button type="button" data-cmd="bold" title="Negrita"><strong>B</strong></button>
+<button type="button" data-cmd="italic" title="Cursiva"><em>I</em></button>
+<button type="button" data-cmd="underline" title="Subrayado"><u>U</u></button>
+<span class="sep"></span>
+<button type="button" data-cmd="insertUnorderedList" title="Viñetas">• Lista</button>
+<button type="button" data-cmd="insertOrderedList" title="Numerada">1. Lista</button>
+<button type="button" data-cmd="formatBlock" data-v="blockquote" title="Cita">❝</button>
+<span class="sep"></span>
+<button type="button" data-cmd="justifyLeft" title="Izquierda">⇤</button>
+<button type="button" data-cmd="justifyCenter" title="Centrar">⇔</button>
+<button type="button" data-cmd="justifyRight" title="Derecha">⇥</button>
+<span class="sep"></span>
+<button type="button" id="wpLink" title="Enlace">🔗</button>
+<button type="button" id="wpFoto" title="Añadir foto aquí">🖼️ Foto</button>
+<select id="wpImgTam" title="Tamaño de la foto seleccionada"><option value="">🖼️ Tamaño…</option><option value="25%">Pequeña (25%)</option><option value="50%">Mediana (50%)</option><option value="75%">Grande (75%)</option><option value="100%">Completa (100%)</option></select>
+<button type="button" id="wpImgCustom" title="Ancho personalizado en %">↔ %</button>
+<button type="button" data-cmd="removeFormat" title="Limpiar formato">🧹</button>
+</div>
+<div id="wpEditor" contenteditable="true">{{ form.instance.cuerpo|safe }}</div>
+<input type="file" id="wpFile" accept="image/*" style="display:none">
+<div id="wpImgHint">🖼️ Foto seleccionada: elige su tamaño arriba (Pequeña / Mediana / Grande / Completa o ↔ %). Toca fuera para soltarla.</div>
+<small class="text-muted">Tip: pon el cursor donde quieras la foto y pulsa 🖼️ Foto. Luego toca la foto para cambiarle el tamaño.</small>
+</div>
+</div>
+<div class="frm-sec"><i class="bi bi-images"></i> Fotos fijas</div>
+<div class="row g-3">
+<div class="col-md-6"><label class="frm-label">Portada</label>{{ form.imagen }}{% if form.instance.imagen %}<small><a href="{{ form.instance.imagen.url }}" target="_blank">ver actual</a></small>{% endif %}</div>
+<div class="col-md-6"><label class="frm-label">Imagen intermedia</label>{{ form.imagen2 }}{% if form.instance.imagen2 %}<small><a href="{{ form.instance.imagen2.url }}" target="_blank">ver actual</a></small>{% endif %}</div>
+</div>
+<div class="frm-sec"><i class="bi bi-youtube" style="color:#FF0000"></i> Video de YouTube <small class="text-muted">— opcional, se reproduce en la noticia</small></div>
+<div class="row g-3">
+<div class="col-12"><label class="frm-label">URL del video</label>{{ form.video_youtube }}{{ form.video_youtube.errors }}<small class="text-muted">Pega el enlace del video de YouTube (ej. https://www.youtube.com/watch?v=..., https://youtu.be/... o https://www.youtube.com/shorts/...). Acepta videos, Shorts y transmisiones públicas o no listadas. No sirven páginas de búsqueda, canales ni listas: abre el video y usa Compartir → Copiar enlace.</small>
+<div id="ytPreview" class="mt-2" style="display:none;max-width:480px"><div style="position:relative;width:100%;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000"><iframe id="ytPreviewFrame" style="position:absolute;inset:0;width:100%;height:100%;border:0" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" title="Vista previa del video"></iframe></div><small id="ytPreviewMsg" class="text-success"></small></div>
+<div id="ytPreviewErr" class="mt-2" style="display:none"><small class="text-danger">⚠️ Esa URL no parece un video válido. El video no se mostrará en la noticia hasta que pegues el enlace del video (watch, youtu.be o shorts).</small></div>
+</div>
+</div>
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_noticias' %}">Cancelar</a><button class="btn btn-mella btn-add"><i class="bi bi-check-lg"></i>Publicar</button></div>
+</form></div></div>
+<script>
+(function(){
+var ed=document.getElementById('wpEditor'), ta=document.getElementById('id_cuerpo'), form=document.getElementById('noticiaForm');
+var URL_SUBIR="{% url 'adm_noticia_imagen' %}";
+function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+document.querySelectorAll('#wpBar [data-cmd]').forEach(function(b){
+  b.addEventListener('click',function(){ed.focus();document.execCommand(b.dataset.cmd,false,b.dataset.v||null);});
+});
+document.getElementById('wpSize').addEventListener('change',function(){
+  if(!this.value)return;ed.focus();
+  var px=this.value;
+  document.execCommand('fontSize',false,'7');
+  ed.querySelectorAll('font[size="7"]').forEach(function(f){var s=document.createElement('span');s.style.fontSize=px;while(f.firstChild)s.appendChild(f.firstChild);f.replaceWith(s);});
+  this.value='';
+});
+document.getElementById('wpLink').addEventListener('click',function(){
+  var u=prompt('URL del enlace (https://…)');if(!u)return;ed.focus();document.execCommand('createLink',false,u);
+});
+var file=document.getElementById('wpFile'), rango=null;
+var imgSel=null, hint=document.getElementById('wpImgHint');
+function marcarImg(img){
+  ed.querySelectorAll('img.sel').forEach(function(x){x.classList.remove('sel');});
+  imgSel=img;
+  if(img){img.classList.add('sel');hint.style.display='block';}
+  else{hint.style.display='none';var t=document.getElementById('wpImgTam');if(t)t.value='';}
+}
+ed.addEventListener('click',function(e){
+  if(e.target&&e.target.tagName==='IMG'){marcarImg(e.target);}
+  else{marcarImg(null);}
+});
+function aplicarAncho(val){
+  if(!imgSel){alert('Toca primero la foto a la que quieres cambiar el tamaño.');return;}
+  val=String(val).trim();
+  if(val.slice(-1)!=='%'&&val.slice(-2)!=='px')val+='%';
+  var num=parseFloat(val);
+  if(val.slice(-1)==='%'&&(isNaN(num)||num<5||num>100)){alert('Usa un valor entre 5% y 100%.');return;}
+  imgSel.style.width=val;
+  imgSel.style.maxWidth='100%';
+  imgSel.style.height='auto';
+  imgSel.style.display='block';
+  // Las pequeñas/medianas quedan centradas; la completa ocupa todo el ancho
+  if(val==='100%'||val==='100px'){imgSel.style.margin='12px 0';}
+  else{imgSel.style.marginLeft='auto';imgSel.style.marginRight='auto';imgSel.style.marginTop='12px';imgSel.style.marginBottom='12px';}
+  imgSel.removeAttribute('width');imgSel.removeAttribute('height');
+  ed.focus();
+}
+document.getElementById('wpImgTam').addEventListener('change',function(){
+  if(!this.value)return;aplicarAncho(this.value);this.value='';
+});
+document.getElementById('wpImgCustom').addEventListener('click',function(){
+  if(!imgSel){alert('Toca primero la foto a la que quieres cambiar el tamaño.');return;}
+  var v=prompt('Ancho de la foto en % (5 a 100):', (imgSel.style.width||'100%').replace('px',''));
+  if(!v)return;v=v.replace(/\s/g,'');if(v.slice(-1)!=='%')v+='%';aplicarAncho(v);
+});
+document.getElementById('wpFoto').addEventListener('click',function(){
+  var s=window.getSelection();if(s.rangeCount)rango=s.getRangeAt(0).cloneRange();file.click();
+});
+file.addEventListener('change',function(){
+  if(!file.files.length)return;
+  var fd=new FormData();fd.append('imagen',file.files[0]);
+  fetch(URL_SUBIR,{method:'POST',headers:{'X-CSRFToken':csrf()},body:fd}).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok){alert(d.error||'No se pudo subir');return;}
+    ed.focus();
+    if(rango){var s=window.getSelection();s.removeAllRanges();s.addRange(rango);}
+    document.execCommand('insertHTML',false,'<img src="'+d.url+'" alt="Foto" style="width: 100%; max-width: 100%; height: auto; display: block; margin: 12px 0;"><p><br></p>');
+    file.value='';
+  });
+});
+form.addEventListener('submit',function(){ta.value=ed.innerHTML;});
+// --- Vista previa del video de YouTube ---
+var ytInput=document.getElementById('id_video_youtube'),
+    ytBox=document.getElementById('ytPreview'),
+    ytFrame=document.getElementById('ytPreviewFrame'),
+    ytMsg=document.getElementById('ytPreviewMsg'),
+    ytErr=document.getElementById('ytPreviewErr');
+function ytId(u){
+  u=String(u||'').trim();
+  if(/^[A-Za-z0-9_-]{11}$/.test(u))return u;
+  var m=u.match(/(?:[?&]v=|youtu\.be\/|\/shorts\/|\/live\/|\/embed\/|\/v\/)([A-Za-z0-9_-]{11})/);
+  return m?m[1]:null;
+}
+function ytCheck(){
+  if(!ytInput)return;
+  var id=ytId(ytInput.value);
+  if(id){ytFrame.src='https://www.youtube-nocookie.com/embed/'+id;ytBox.style.display='block';ytErr.style.display='none';if(ytMsg)ytMsg.textContent='✔ Vista previa: este video sí se mostrará en la noticia.';}
+  else if(String(ytInput.value||'').trim()){ytBox.style.display='none';ytFrame.removeAttribute('src');ytErr.style.display='block';}
+  else{ytBox.style.display='none';ytFrame.removeAttribute('src');ytErr.style.display='none';}
+}
+if(ytInput){ytInput.addEventListener('input',ytCheck);ytCheck();}
+})();
+</script>
+{% endblock %}

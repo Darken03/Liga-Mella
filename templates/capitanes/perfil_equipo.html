@@ -1,0 +1,86 @@
+{% extends 'base_capitan.html' %}{% block title %}Mi equipo | Capitán{% endblock %}{% block content %}
+<style>
+.fb-preview{border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 10px 26px rgba(10,26,58,.12)}
+.fb-cover{height:340px;background:linear-gradient(120deg,{{ equipo.color|default:'#0A1A3A' }} 20%,#050b1d 130%);position:relative;background-size:cover;background-position:center}
+.fb-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:{{ equipo.banner_position|default:"50% 50%" }}}
+@media(max-width:576px){.fb-cover{height:160px}}
+.fb-ava{width:120px;height:120px;border-radius:50%;object-fit:cover;border:5px solid #fff;background:{{ equipo.color|default:'#0A1A3A' }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:Oswald;font-weight:700;font-size:2rem;margin:-60px 0 0 24px;position:relative;box-shadow:0 6px 18px rgba(0,0,0,.3);overflow:hidden;flex-shrink:0}
+.fb-ava img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.up-box{border:2px dashed var(--mella-line);border-radius:12px;padding:14px;background:#f8fafc}
+.up-box:hover{border-color:var(--mella-gold)}
+.mini-prev{width:100%;border-radius:10px;max-height:150px;object-fit:cover;display:block}
+</style>
+<div class="page-head"><h3 class="oswald">Mi equipo · {{ equipo.nombre }}</h3><a class="btn btn-sm btn-ghost" href="/equipos/{{ equipo.id }}/" target="_blank">Ver perfil público →</a></div>
+
+<!-- Vista previa estilo Facebook -->
+<div class="fb-preview mb-3">
+<div class="fb-cover" id="pvCover" {% if equipo.banner %}style="background-image:url('{{ equipo.banner.url }}')"{% endif %}>{% if equipo.banner %}<img id="pvCoverImg" src="{{ equipo.banner.url }}" style="object-position:{{ equipo.banner_position }}">{% else %}<img id="pvCoverImg" style="display:none">{% endif %}</div>
+<div class="d-flex align-items-end gap-3 p-3 pt-0">
+<div class="fb-ava" id="pvAva">{% if equipo.logo %}<img id="pvAvaImg" src="{{ equipo.logo.url }}">{% else %}<span id="pvAvaTxt">{{ equipo.sigla|slice:":2" }}</span><img id="pvAvaImg" style="display:none">{% endif %}</div>
+<div class="pb-1"><h3 class="oswald mb-0">{{ equipo.nombre }}</h3><small class="text-muted">{{ equipo.sigla }} • {{ equipo.victorias }}W - {{ equipo.derrotas }}L • {{ equipo.jugadores.count }} jugadores</small></div>
+</div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="row g-3">{% csrf_token %}
+<div class="col-12 col-lg-6"><div class="card card-mella p-3 h-100"><h5 class="oswald">Logo del equipo</h5>
+<div class="up-box mb-2 text-center">{% if equipo.logo %}<img src="{{ equipo.logo.url }}" class="mini-prev mb-2" alt="Logo actual">{% else %}<p class="text-muted">Sin logo todavía.</p>{% endif %}
+<input type="file" name="logo" id="inLogo" accept="image/*" class="form-control"></div>
+<div class="form-check"><input class="form-check-input" type="checkbox" name="quitar_logo" id="qLogo" value="1"><label class="form-check-label" for="qLogo">Quitar logo actual</label></div>
+<small class="text-muted">Cuadrado, PNG/JPG. Se muestra redondo en el perfil.</small></div></div>
+<div class="col-12 col-lg-6"><div class="card card-mella p-3 h-100"><h5 class="oswald">Foto de portada</h5>
+<div class="up-box mb-2 text-center">{% if equipo.banner %}<img src="{{ equipo.banner.url }}" class="mini-prev mb-2" alt="Portada actual">{% else %}<p class="text-muted">Sin portada todavía.</p>{% endif %}
+<input type="file" name="banner" id="inBanner" accept="image/*" class="form-control"></div>
+<div class="form-check"><input class="form-check-input" type="checkbox" name="quitar_banner" id="qBanner" value="1"><label class="form-check-label" for="qBanner">Quitar portada actual</label></div>
+<small class="text-muted">Apaisada (ej. 1200×400). Se recorta sola arriba del perfil.</small></div></div>
+<div class="col-12 col-lg-6"><div class="card card-mella p-3"><h5 class="oswald">Color del equipo</h5><input type="color" name="color" value="{{ equipo.color|default:'#0A1A3A' }}" class="form-control form-control-color w-100"><small class="text-muted">Fondo cuando no hay portada.</small></div></div>
+<div class="col-12"><div class="card card-mella p-3"><h5 class="oswald">Encuadre de la portada <small class="text-muted">— toca la foto o mueve los deslizadores</small></h5>
+<style>
+.enc-frame{position:relative;border-radius:12px;overflow:hidden;background:#0A1A3A;min-height:140px;cursor:crosshair;border:1px solid var(--mella-line)}
+.enc-frame img{width:100%;height:260px;object-fit:cover;display:block;pointer-events:none}
+.enc-dot{position:absolute;width:22px;height:22px;border-radius:50%;border:3px solid #fff;background:rgba(200,30,46,.9);box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);pointer-events:none}
+</style>
+<div class="enc-frame mb-2" id="encFrame" title="Toca para mover el encuadre">{% if equipo.banner %}<img id="encImg" src="{{ equipo.banner.url }}" style="object-position:{{ equipo.banner_position }}">{% else %}<img id="encImg" style="display:none">{% endif %}<span class="enc-dot" id="encDot" style="left:{{ equipo.banner_x }}%;top:{{ equipo.banner_y }}%"></span></div>
+<div class="row g-2">
+<div class="col-6"><label class="frm-label">Horizontal: <strong id="encXVal">{{ equipo.banner_x }}%</strong></label><input type="range" name="banner_x" id="encX" min="0" max="100" step="1" value="{{ equipo.banner_x }}" class="form-range w-100"></div>
+<div class="col-6"><label class="frm-label">Vertical: <strong id="encYVal">{{ equipo.banner_y }}%</strong></label><input type="range" name="banner_y" id="encY" min="0" max="100" step="1" value="{{ equipo.banner_y }}" class="form-range w-100"></div>
+</div>
+<small class="text-muted">El punto marca qué parte de la foto queda visible en el perfil público.</small></div></div>
+<div class="col-12"><button class="btn btn-gold">Guardar imagen</button> <a class="btn btn-ghost" href="{% url 'cap_dash' %}">Volver</a></div>
+</form>
+<script>
+(function(){
+function prev(input, imgId, txtId){
+  var f=input.files&&input.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(e){var im=document.getElementById(imgId);im.src=e.target.result;im.style.display='block';var t=txtId&&document.getElementById(txtId);if(t)t.style.display='none';};
+  r.readAsDataURL(f);
+}
+document.getElementById('inLogo').addEventListener('change',function(){prev(this,'pvAvaImg','pvAvaTxt');});
+document.getElementById('inBanner').addEventListener('change',function(){
+  prev(this,'pvCoverImg');document.getElementById('pvCover').style.backgroundImage='none';
+  var enc=document.getElementById('encImg');if(enc){var r=new FileReader();var f=this.files[0];r.onload=function(e){enc.src=e.target.result;enc.style.display='block';ap();};r.readAsDataURL(f);}
+});
+// --- Encuadre ---
+var rx=document.getElementById('encX'), ry=document.getElementById('encY');
+var enc=document.getElementById('encImg'), dot=document.getElementById('encDot'), frame=document.getElementById('encFrame');
+var pv=document.getElementById('pvCoverImg');
+var xv=document.getElementById('encXVal'), yv=document.getElementById('encYVal');
+function ap(){
+  var x=rx?+rx.value:50, y=ry?+ry.value:50;
+  var pos=x+'% '+y+'%';
+  if(enc&&enc.src){enc.style.objectPosition=pos;}
+  if(pv&&pv.src){pv.style.objectPosition=pos;}
+  if(dot){dot.style.left=x+'%';dot.style.top=y+'%';}
+  if(xv)xv.textContent=x+'%'; if(yv)yv.textContent=y+'%';
+}
+if(rx)rx.addEventListener('input',ap); if(ry)ry.addEventListener('input',ap);
+if(frame)frame.addEventListener('click',function(e){
+  var r=frame.getBoundingClientRect();
+  var x=Math.round((e.clientX-r.left)/r.width*100), y=Math.round((e.clientY-r.top)/r.height*100);
+  x=Math.min(100,Math.max(0,x)); y=Math.min(100,Math.max(0,y));
+  if(rx)rx.value=x; if(ry)ry.value=y; ap();
+});
+ap();
+})();
+</script>
+{% endblock %}

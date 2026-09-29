@@ -1,0 +1,12 @@
+{% extends 'base_admin.html' %}{% block content %}
+<div class="col-lg-9"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">{{ titulo }}</h3><a class="act view" href="{% url 'adm_reglas' %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}
+<div class="row g-3">
+<div class="col-12"><label class="frm-label">Título</label>{{ form.titulo }}</div>
+<div class="col-12"><label class="frm-label">Contenido</label>{{ form.contenido }}<small class="text-muted">Puedes pegar texto con formato básico (títulos, negritas, listas). Los saltos de línea se respetan.</small></div>
+<div class="col-6"><label class="frm-label">Orden (menor sale primero)</label>{{ form.orden }}</div>
+<div class="col-6"><label class="frm-label">Visible en la página</label><div class="form-check mt-2">{{ form.activa }} <label class="form-check-label" for="{{ form.activa.id_for_label }}">Mostrar en /reglas/</label></div></div>
+</div>
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_reglas' %}">Cancelar</a><button class="btn btn-mella btn-add"><i class="bi bi-check-lg"></i>Guardar</button></div>
+</form></div></div>{% endblock %}

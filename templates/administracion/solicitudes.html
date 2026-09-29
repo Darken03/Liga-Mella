@@ -1,0 +1,8 @@
+{% extends 'base_admin.html' %}{% block title %}Solicitudes | Admin{% endblock %}{% block content %}
+<h3 class="oswald mb-3">Solicitudes de traslado</h3>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Fecha</th><th>Jugador (usuario)</th><th>Equipo destino</th><th>Enviada por</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+{% for s in solicitudes %}<tr><td><small>{{ s.creada|date:"d M H:i" }}</small></td><td><strong>{{ s.usuario.username }}</strong><br><small>{{ s.usuario.first_name }} {{ s.usuario.last_name }}</small></td><td>{{ s.equipo.nombre }}</td><td><small>{{ s.creado_por.username|default:"—" }}</small></td>
+<td><span class="badge {% if s.estado == 'pendiente' %}bg-warning text-dark{% elif s.estado == 'aceptada' %}bg-success{% else %}bg-secondary{% endif %}">{{ s.estado }}</span></td>
+<td class="text-nowrap">{% if s.estado == 'pendiente' %}<form method="post" action="{% url 'adm_solicitud_aprobar' s.id %}" class="d-inline">{% csrf_token %}<button class="act ok" title="Aprobar"><i class="bi bi-check-lg"></i></button></form> <form method="post" action="{% url 'adm_solicitud_rechazar' s.id %}" class="d-inline">{% csrf_token %}<button class="act del" title="Rechazar"><i class="bi bi-x-lg"></i></button></form>{% else %}—{% endif %}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-muted">Sin solicitudes.</td></tr>{% endfor %}
+</tbody></table></div>{% endblock %}

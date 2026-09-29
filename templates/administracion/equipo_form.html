@@ -1,0 +1,68 @@
+{% extends 'base_admin.html' %}{% block content %}
+<div class="col-lg-9"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">{{ titulo }}</h3><a class="act view" href="{% url 'adm_equipos' %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.non_field_errors }}
+<div class="frm-sec"><i class="bi bi-shield"></i> Datos del equipo</div>
+<div class="row g-3">
+<div class="col-md-8"><label class="frm-label" for="{{ form.nombre.id_for_label }}">Nombre del equipo</label>{{ form.nombre }}{{ form.nombre.errors }}</div>
+<div class="col-md-4"><label class="frm-label" for="{{ form.sigla.id_for_label }}">Siglas</label>{{ form.sigla }}{{ form.sigla.errors }}</div>
+<div class="col-md-6"><label class="frm-label" for="{{ form.color.id_for_label }}">Color</label>{{ form.color }}</div>
+<div class="col-md-6"><label class="frm-label" for="{{ form.capitan.id_for_label }}">Capitán (usuario)</label>{{ form.capitan }}</div>
+<div class="col-md-6"><label class="frm-label" for="{{ form.director.id_for_label }}">Director (usuario, mismo poder)</label>{{ form.director }}</div>
+</div>
+<div class="frm-sec"><i class="bi bi-image"></i> Imágenes</div>
+<div class="row g-3">
+<div class="col-md-6"><label class="frm-label" for="{{ form.logo.id_for_label }}">Logo</label>{{ form.logo }}{% if form.instance.logo %}<small><a href="{{ form.instance.logo.url }}" target="_blank">ver actual</a></small>{% endif %}</div>
+<div class="col-md-6"><label class="frm-label" for="{{ form.banner.id_for_label }}">Banner · foto del equipo reunido</label>{{ form.banner }}{% if form.instance.banner %}<small><a href="{{ form.instance.banner.url }}" target="_blank">ver actual</a></small>{% endif %}</div>
+</div>
+<div class="frm-sec"><i class="bi bi-crop"></i> Encuadre del banner <small class="text-muted">— mueve el punto para elegir qué parte se ve</small></div>
+<style>
+.enc-frame{position:relative;border-radius:12px;overflow:hidden;background:#0A1A3A;min-height:160px;border:1px solid var(--mella-line);cursor:crosshair}
+.enc-frame img{width:100%;height:280px;object-fit:cover;display:block;pointer-events:none}
+.enc-dot{position:absolute;width:22px;height:22px;border-radius:50%;border:3px solid #fff;background:rgba(200,30,46,.9);box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translate(-50%,-50%);pointer-events:none}
+.enc-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);font-size:.9rem}
+</style>
+<div class="row g-3">
+<div class="col-12">
+<div class="enc-frame" id="encFrame" title="Toca para mover el encuadre">{% if form.instance.banner %}<img id="encImg" src="{{ form.instance.banner.url }}" style="object-position:{{ form.instance.banner_position }}">{% else %}<img id="encImg" style="display:none"><span class="enc-empty" id="encEmpty">Sube un banner para encuadrarlo aquí</span>{% endif %}<span class="enc-dot" id="encDot" style="left:{{ form.instance.banner_x|default:50 }}%;top:{{ form.instance.banner_y|default:50 }}%"></span></div>
+</div>
+<div class="col-md-6"><label class="frm-label">Horizontal (izq ↔ der): <strong id="encXVal">{{ form.instance.banner_x|default:50 }}%</strong></label>{{ form.banner_x }}</div>
+<div class="col-md-6"><label class="frm-label">Vertical (arriba ↕ abajo): <strong id="encYVal">{{ form.instance.banner_y|default:50 }}%</strong></label>{{ form.banner_y }}</div>
+<div class="col-12"><small class="text-muted">Tip: toca la foto o arrastra los deslizadores. Se guarda con el equipo y se ve igual en el perfil público.</small></div>
+</div>
+<script>
+(function(){
+var rx=document.getElementById('id_banner_x'), ry=document.getElementById('id_banner_y');
+var img=document.getElementById('encImg'), dot=document.getElementById('encDot'), frame=document.getElementById('encFrame');
+var xv=document.getElementById('encXVal'), yv=document.getElementById('encYVal');
+function ap(){
+  var x=rx?+rx.value:50, y=ry?+ry.value:50;
+  if(img&&img.src){img.style.objectPosition=x+'% '+y+'%';}
+  if(dot){dot.style.left=x+'%';dot.style.top=y+'%';}
+  if(xv)xv.textContent=x+'%'; if(yv)yv.textContent=y+'%';
+}
+if(rx)rx.addEventListener('input',ap); if(ry)ry.addEventListener('input',ap);
+function desdeEvento(e){
+  var r=frame.getBoundingClientRect();
+  var cx=(e.touches&&e.touches[0])?e.touches[0].clientX:e.clientX;
+  var cy=(e.touches&&e.touches[0])?e.touches[0].clientY:e.clientY;
+  var x=Math.round((cx-r.left)/r.width*100), y=Math.round((cy-r.top)/r.height*100);
+  x=Math.min(100,Math.max(0,x)); y=Math.min(100,Math.max(0,y));
+  if(rx)rx.value=x; if(ry)ry.value=y; ap();
+}
+if(frame){
+  frame.addEventListener('click',desdeEvento);
+  // vista previa del archivo recién elegido
+  var fb=document.getElementById('id_banner');
+  if(fb)fb.addEventListener('change',function(){
+    var f=this.files&&this.files[0]; if(!f||!img)return;
+    var r=new FileReader();
+    r.onload=function(e){img.src=e.target.result;img.style.display='block';var em=document.getElementById('encEmpty');if(em)em.style.display='none';ap();};
+    r.readAsDataURL(f);
+  });
+}
+ap();
+})();
+</script>
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_equipos' %}">Cancelar</a><button class="btn btn-mella btn-add"><i class="bi bi-check-lg"></i>Guardar</button></div>
+</form></div></div>{% endblock %}

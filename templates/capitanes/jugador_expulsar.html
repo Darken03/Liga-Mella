@@ -1,0 +1,7 @@
+{% extends 'base_capitan.html' %}{% block content %}
+<div class="col-lg-6 mx-auto"><div class="card card-mella p-4 text-center">
+<h3 class="oswald">Expulsar a {{ j.nombre_completo }}?</h3>
+<p class="text-muted">Saldrá del roster de <strong>{{ equipo.nombre }}</strong>. Su cuenta de usuario se mantiene, pero quedará libre para fichar por otro equipo. Esta acción no se puede deshacer.</p>
+<div class="d-flex gap-2 justify-content-center"><form method="post">{% csrf_token %}<button class="btn btn-ghost" style="border-color:#dc2626;color:#dc2626">Sí, expulsar</button></form><a class="btn btn-gold" href="{% url 'cap_jugadores' %}">Cancelar</a></div>
+</div></div>
+{% endblock %}

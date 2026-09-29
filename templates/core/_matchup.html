@@ -1,0 +1,6 @@
+<div class="matchup">
+  <div class="mside left" style="--mc:{{ j.local.color }}">{% if j.local.logo %}<img class="mlogo" src="{{ j.local.logo.url }}">{% else %}<span class="minit">{{ j.local.sigla|slice:":1" }}</span>{% endif %}<span class="mname">{{ j.local.nombre|upper }}</span>{% if show_score %}<span class="mscore ms-auto">{{ j.carreras_local }}</span>{% endif %}</div>
+  <div class="vscell"><div class="vs-d"><span>VS</span></div></div>
+  <div class="mside right" style="--mc:{{ j.visita.color }}">{% if show_score %}<span class="mscore me-auto">{{ j.carreras_visita }}</span>{% endif %}<span class="mname">{{ j.visita.nombre|upper }}</span>{% if j.visita.logo %}<img class="mlogo" src="{{ j.visita.logo.url }}">{% else %}<span class="minit">{{ j.visita.sigla|slice:":1" }}</span>{% endif %}</div>
+</div>
+<div class="mmeta"><small class="text-muted">{{ j.fecha|date:"d M H:i" }} • {{ j.estadio }}</small> {% if j.estado == 'envivo' %}<span class="badge badge-live">EN VIVO • {{ j.inning_actual }}</span>{% elif j.estado == 'final' %}<span class="badge bg-secondary">FINAL</span>{% else %}<span class="badge" style="background:var(--mella-navy)">PRÓXIMO</span>{% endif %}<br><small class="text-muted">⚾ Abr: {{ j.local.abridor.nombre|default:"—" }} vs {{ j.visita.abridor.nombre|default:"—" }}</small></div>

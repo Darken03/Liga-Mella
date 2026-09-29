@@ -1,0 +1,157 @@
+{% extends 'base_capitan.html' %}{% load static %}{% block title %}Titular regular | Capitán{% endblock %}{% block content %}
+<style>
+.fplayer.sel .dot:not(.has-photo){background:var(--mella-gold)!important;transform:scale(1.12)}
+.fplayer.sel .pos{background:var(--mella-red)!important}
+.fplayer.filled .dot:not(.has-photo){border-color:#16a34a}
+.fplayer.sel .fdot-img{transform:scale(1.12)}
+.roster-item{cursor:pointer;transition:all .15s;border:2px solid transparent}
+.roster-item:hover{border-color:var(--mella-gold);transform:translateY(-1px)}
+.roster-item.in-field{border-color:var(--mella-navy);background:#eef4ff}
+#posHint{min-height:44px}
+</style>
+
+<div class="page-head"><h3 class="oswald">Titular regular · {{ equipo.nombre }}</h3><div class="d-flex gap-1"><a class="act view" title="Ver página pública" href="/equipos/{{ equipo.id }}/"><i class="bi bi-eye"></i></a></div></div>
+<p class="text-muted"><small>Este es el equipo que se ve en la <strong>página pública</strong> del equipo. No es por juego: es tu formación fija (10 defensa + BD + 5 asignados). <strong>1.</strong> Toca el terreno <strong>2.</strong> toca el jugador.</small></p>
+
+<div class="row g-3">
+<div class="col-12 col-lg-7">
+<div class="field-wrap">
+<div class="field-photo">
+<img src="{% static 'img/campo.png' %}" alt="Terreno">
+<button type="button" class="fplayer" data-pos="LCF" style="left:33%;top:24%"><span class="pos">LCF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="RCF" style="left:67%;top:24%"><span class="pos">RCF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="LF" style="left:15%;top:40%"><span class="pos">LF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="RF" style="left:85%;top:40%"><span class="pos">RF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="SS" style="left:40%;top:48%"><span class="pos">SS</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="2B" style="left:60%;top:48%"><span class="pos">2B</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="3B" style="left:28%;top:62%"><span class="pos">3B</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="1B" style="left:72%;top:62%"><span class="pos">1B</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="P" style="left:50%;top:65%"><span class="pos">P</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="C" style="left:50%;top:84%"><span class="pos">C</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BD" style="left:11%;top:58%" title="Bateador designado"><span class="pos">BD</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA1" style="left:89%;top:61%" title="Bateador asignado 1"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA2" style="left:11%;top:73%" title="Bateador asignado 2"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA3" style="left:89%;top:76%" title="Bateador asignado 3"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA4" style="left:11%;top:88%" title="Bateador asignado 4"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA5" style="left:89%;top:91%" title="Bateador asignado 5"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+</div>
+<div id="posHint" class="alert alert-light mt-2 mb-0 py-2"><small id="posHintTxt">Toca una posición del terreno para seleccionarla…</small></div>
+<div class="d-flex gap-2 mt-2 flex-wrap"><button type="button" class="btn btn-sm btn-ghost" id="btnClearPos">Quitar de posición</button><button type="button" class="btn btn-sm btn-ghost" id="btnVaciar">Vaciar terreno</button><span class="ms-auto"><small class="text-muted"><span id="countField">0</span>/10 defensa • <span id="countExtra">0</span>/6 BD+BA</small></span></div>
+</div>
+</div>
+
+<div class="col-12 col-lg-5">
+<div class="card card-mella p-3"><h5 class="oswald">Roster · {{ roster|length }} <small class="text-muted">— toca para colocar</small></h5>
+<div class="mb-2"><input id="filterRoster" class="form-control form-control-sm" placeholder="Filtrar jugador…"></div>
+<div id="rosterList" class="d-flex flex-column gap-2" style="max-height:420px;overflow:auto">
+{% for j in roster %}<div class="roster-item card p-2 d-flex flex-row align-items-center gap-2" data-jid="{{ j.id }}" data-nombre="{{ j.nombre_completo|escape }}" data-dorsal="{{ j.dorsal }}" data-foto="{% if j.foto %}{{ j.foto.url }}{% endif %}">
+{% if j.foto %}<img src="{{ j.foto.url }}" class="player-cutout" alt="{{ j.nombre_completo }}">{% else %}<span class="avatar">{{ j.nombre|slice:":1" }}</span>{% endif %}
+<div class="flex-grow-1"><strong>{{ j.nombre_completo }}</strong> <small class="text-muted">#{{ j.dorsal }} • {{ j.posicion }}</small><br><small class="bStatus text-muted"></small></div>
+</div>{% endfor %}
+</div>
+</div>
+
+<div class="card card-mella p-3 mt-3"><h6 class="oswald">Guardar titular</h6>
+<form method="post" id="titForm">{% csrf_token %}
+<div id="hiddenRows"></div>
+<button class="btn btn-gold w-100" id="btnGuardar">Guardar titular (<span id="countSave">0</span>/16) →</button>
+</form>
+<small class="text-muted">Se publica al instante en <a href="/equipos/{{ equipo.id }}/">la página de tu equipo</a>.</small></div>
+</div>
+</div>
+
+<script>
+(function(){
+var DEF = ["P","C","1B","2B","SS","3B","LF","LCF","RCF","RF"];
+var SLOTS_EXTRA = ["BD","BA1","BA2","BA3","BA4","BA5"];
+var roster = {};
+document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+  roster[el.dataset.jid] = {id: el.dataset.jid, nombre: el.dataset.nombre, dorsal: el.dataset.dorsal, foto: el.dataset.foto||'', el: el};
+});
+var field = {P:null,C:null,"1B":null,"2B":null,SS:null,"3B":null,LF:null,LCF:null,RCF:null,RF:null,BD:null,BA1:null,BA2:null,BA3:null,BA4:null,BA5:null};
+{% for d in detalles_list %}field["{{ d.posicion }}"]="{{ d.jugador_id }}";{% endfor %}
+var selectedPos = null;
+var posHintTxt = document.getElementById('posHintTxt');
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function shortName(id){ var r=roster[id]; if(!r) return '?'; var parts=r.nombre.split(' '); return (parts[0][0]+'. '+(parts[1]||'')).trim(); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function renderField(){
+  document.querySelectorAll('.fplayer').forEach(function(b){
+    var pos=b.dataset.pos, jid=field[pos];
+    var dot=b.querySelector('.dot'), fn=b.querySelector('.fname');
+    b.classList.toggle('sel', pos===selectedPos);
+    b.classList.toggle('filled', !!jid);
+    if(jid && roster[jid]){
+      var r=roster[jid];
+      dot.classList.add('has-photo');
+      if(r.foto){ dot.innerHTML='<img class="fdot-img" src="'+esc(r.foto)+'" alt="'+esc(r.nombre)+'">'; }
+      else { dot.classList.remove('has-photo'); dot.textContent=r.dorsal; }
+      fn.textContent=pad2(r.dorsal)+'. '+shortName(jid);
+    }
+    else { dot.classList.remove('has-photo'); dot.textContent='?'; fn.textContent='Vacante'; }
+  });
+  var n = DEF.map(function(p){return field[p]}).filter(Boolean).length;
+  var nx = SLOTS_EXTRA.map(function(p){return field[p]}).filter(Boolean).length;
+  document.getElementById('countField').textContent = n;
+  document.getElementById('countExtra').textContent = nx;
+  document.getElementById('countSave').textContent = n + nx;
+  if(selectedPos){ var occ=field[selectedPos]; posHintTxt.innerHTML='Pos <strong>'+selectedPos+'</strong> seleccionada '+(occ&&roster[occ]?'('+esc(roster[occ].nombre)+')':'vacante')+' — toca un jugador del roster para colocar/sustituir.'; }
+  else { posHintTxt.textContent='Toca una posición del terreno para seleccionarla…'; }
+  // roster estados
+  document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+    var jid=el.dataset.jid, inF=Object.values(field).includes(jid);
+    el.classList.toggle('in-field', inF);
+    var st=el.querySelector('.bStatus'), pos=null;
+    for(var k in field){ if(field[k]===jid) pos=k; }
+    if(pos) pos=pos.replace(/^BA[1-5]$/,'BA');
+    st.textContent = pos ? ('En terreno · '+pos) : 'Disponible';
+  });
+  syncHidden();
+}
+function syncHidden(){
+  var h=document.getElementById('hiddenRows'); h.innerHTML='';
+  for(var k in field){ if(field[k]){ h.innerHTML+='<input type="hidden" name="jugador" value="'+field[k]+'"><input type="hidden" name="posicion" value="'+k+'">'; } }
+}
+function assignToField(pos, jid){
+  if(!roster[jid]) return;
+  var prevOcc = field[pos];
+  if(prevOcc===jid){ selectedPos=null; renderField(); return; }
+  var prevPosOfNew = null;
+  for(var k in field){ if(field[k]===jid) prevPosOfNew=k; }
+  if(prevPosOfNew){ field[prevPosOfNew]=prevOcc||null; field[pos]=jid; }
+  else { field[pos]=jid; }
+  selectedPos=null;
+  renderField();
+}
+document.querySelectorAll('.fplayer').forEach(function(b){
+  b.addEventListener('click', function(){
+    selectedPos = (selectedPos===b.dataset.pos) ? null : b.dataset.pos;
+    renderField();
+  });
+});
+document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+  el.addEventListener('click', function(){
+    if(!selectedPos){ alert('Primero toca una posición del terreno.'); return; }
+    assignToField(selectedPos, el.dataset.jid);
+  });
+});
+document.getElementById('btnClearPos').addEventListener('click', function(){
+  if(!selectedPos){ alert('Selecciona una posición primero.'); return; }
+  field[selectedPos]=null; selectedPos=null; renderField();
+});
+document.getElementById('btnVaciar').addEventListener('click', function(){
+  for(var k in field) field[k]=null;
+  selectedPos=null; renderField();
+});
+document.getElementById('filterRoster').addEventListener('input', function(){
+  var q=this.value.toLowerCase();
+  document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+    el.style.display = el.dataset.nombre.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+renderField();
+})();
+</script>
+{% endblock %}

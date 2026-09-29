@@ -1,0 +1,56 @@
+{% extends 'base_publica.html' %}{% block title %}{{ n.titulo }} | Liga Mella{% endblock %}{% block content %}
+<style>
+.news-topbar{position:sticky;top:70px;z-index:30;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border:1px solid var(--mella-line);border-radius:14px;padding:8px 12px;margin-bottom:16px;box-shadow:0 6px 18px rgba(10,26,58,.10)}
+.btn-volver{display:inline-flex;align-items:center;gap:8px;background:var(--mella-navy);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-weight:700;font-size:.9rem;text-decoration:none;white-space:nowrap;box-shadow:0 4px 12px rgba(10,26,58,.25)}
+.btn-volver:hover{background:var(--mella-red);color:#fff}
+.news-crumb{font-size:.85rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.news-crumb a{color:var(--mella-navy);font-weight:700;text-decoration:none}
+.news-article{background:#fff;border-radius:18px;box-shadow:0 12px 32px rgba(10,26,58,.12);overflow:hidden}
+.news-hero{padding:18px 18px 0}
+.news-hero img{width:100%;max-height:440px;object-fit:cover;border-radius:14px;display:block}
+.news-body{padding:22px 22px 8px}
+.news-tag{font-size:.75rem;letter-spacing:1px}
+.news-title{font-family:Oswald;font-weight:700;text-transform:uppercase;line-height:1.15;margin:10px 0 6px;font-size:clamp(1.5rem,3.5vw,2.2rem)}
+.news-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:#64748b;font-size:.88rem;border-bottom:1px solid var(--mella-line);padding-bottom:12px;margin-bottom:6px}
+.news-lead{font-size:1.12rem;line-height:1.65;color:#334155;border-left:4px solid var(--mella-gold);background:#fffbeb;border-radius:0 12px 12px 0;padding:12px 16px;margin:14px 0 6px}
+.news-video{margin:16px 0}
+.news-video .yt-wrap,.news-video .fb-wrap{position:relative;width:100%;padding-top:56.25%;border-radius:12px;overflow:hidden;box-shadow:0 8px 22px rgba(10,26,58,.14);background:#000}
+.news-video .yt-wrap iframe,.news-video .fb-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.cuerpo-noticia{font-size:1.05rem;line-height:1.8;color:#1e293b}
+.cuerpo-noticia p{margin:0 0 14px}
+.cuerpo-noticia img{display:block;margin:16px auto;max-width:100%;height:auto;border-radius:12px;box-shadow:0 8px 22px rgba(10,26,58,.14)}
+.cuerpo-noticia h2,.cuerpo-noticia h3,.cuerpo-noticia h4{font-family:Oswald;text-transform:uppercase;margin:22px 0 10px;line-height:1.25}
+.cuerpo-noticia blockquote{border-left:4px solid var(--mella-gold);margin:16px 0;padding:10px 16px;color:#475569;background:#fffbeb;border-radius:0 10px 10px 0;font-style:italic}
+.cuerpo-noticia ul,.cuerpo-noticia ol{margin:10px 0 16px 22px}
+.news-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 22px 22px}
+.btn-share{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:8px 14px;font-size:.85rem;font-weight:700;text-decoration:none;border:1px solid var(--mella-line);color:var(--mella-navy);background:#f8fafc}
+.btn-share:hover{border-color:var(--mella-gold);background:#fffbeb;color:var(--mella-navy)}
+.rel-title{font-family:Oswald;font-style:italic;font-weight:700;letter-spacing:2px;margin:22px 0 12px;position:relative;padding-left:14px}
+.rel-title::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:6px;background:linear-gradient(180deg,var(--mella-gold),var(--mella-red));transform:skewX(-12deg);border-radius:3px}
+@media(max-width:576px){.news-topbar{top:62px;padding:6px 10px}.news-crumb{display:none}.news-body{padding:16px 16px 4px}.news-foot{padding:10px 16px 16px}.news-hero{padding:12px 12px 0}.news-hero img{max-height:260px}}
+</style>
+<div class="col-lg-8 mx-auto">
+<div class="news-topbar">
+<a class="btn-volver" href="/noticias/"><i class="bi bi-arrow-left"></i>Volver</a>
+<span class="news-crumb"><a href="/noticias/">Noticias</a> &nbsp;/&nbsp; {{ n.titulo|truncatechars:60 }}</span>
+<span class="badge bg-danger ms-auto news-tag">{{ n.torneo_tag }}</span>
+</div>
+<article class="news-article">
+{% if n.imagen %}<div class="news-hero"><img src="{{ n.imagen.url }}" alt="{{ n.titulo }}"></div>{% endif %}
+<div class="news-body">
+<h1 class="news-title">{{ n.titulo }}</h1>
+<div class="news-meta"><span><i class="bi bi-calendar3"></i> {{ n.fecha|date:"d M Y H:i" }}</span><span class="badge bg-warning text-dark">{{ n.torneo_tag }}</span></div>
+<p class="news-lead">{{ n.resumen }}</p>
+{% if n.video_embed_url %}<div class="news-video"><div class="yt-wrap"><iframe src="{{ n.video_embed_url }}" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" title="Video de YouTube de la noticia"></iframe></div></div>{% endif %}
+<div class="cuerpo-noticia">{{ n.cuerpo|safe }}</div>
+{% if n.imagen2 %}<img src="{{ n.imagen2.url }}" alt="Foto adicional" style="width:100%;border-radius:12px;margin:14px 0;box-shadow:0 8px 22px rgba(10,26,58,.14)">{% endif %}
+</div>
+<div class="news-foot">
+<a class="btn-volver" href="/noticias/"><i class="bi bi-arrow-left"></i>Ver todas</a>
+<a class="btn-share" target="_blank" href="https://wa.me/?text={{ n.titulo|urlencode }}%20{{ request.build_absolute_uri|urlencode }}"><i class="bi bi-whatsapp"></i>Compartir</a>
+<a class="btn-share" href="/noticias/"><i class="bi bi-grid"></i>Más noticias</a>
+</div>
+</article>
+{% if relacionadas %}<h3 class="rel-title">SIGUE LEYENDO</h3><div class="row g-3">{% for r in relacionadas %}<div class="col-12 col-md-4"><div class="news-card h-100"><div class="news-img">{% if r.imagen %}<img src="{{ r.imagen.url }}" alt="{{ r.titulo }}">{% endif %}<span class="badge bg-danger position-relative">{{ r.torneo_tag }}</span></div><div class="p-3"><h6 class="oswald mb-1"><a href="/noticias/{{ r.id }}/" class="text-decoration-none text-dark">{{ r.titulo|truncatechars:70 }}</a></h6><small class="text-muted"><i class="bi bi-calendar3"></i> {{ r.fecha|date:"d M Y" }}</small><br><a href="/noticias/{{ r.id }}/" class="btn btn-sm btn-navy mt-2">Leer →</a></div></div></div>{% endfor %}</div>{% endif %}
+</div>
+{% endblock %}

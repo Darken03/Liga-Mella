@@ -1,0 +1,48 @@
+<style>
+.notif-bell{position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.08);color:#fff;font-size:1.1rem;cursor:pointer;transition:all .2s}
+.notif-bell:hover{background:rgba(255,255,255,.2)}
+.notif-bell.dark{border-color:var(--mella-line);background:#fff;color:var(--mella-navy)}
+.notif-bell.dark:hover{background:#eef2f7}
+.notif-badge{position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;border-radius:999px;background:#dc2626;color:#fff;font-size:.68rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid #fff}
+.notif-menu{width:340px;max-height:420px;overflow:auto;padding:0;border-radius:14px;box-shadow:0 16px 40px rgba(10,26,58,.25)}
+.notif-menu .notif-head{position:sticky;top:0;background:#0A1A3A;color:#fff;padding:10px 14px;font-family:Oswald;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center}
+.notif-item{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--mella-line);text-decoration:none;color:inherit}
+.notif-item:hover{background:#fff8e1}
+.notif-item.unread{background:#fffdf3;border-left:4px solid var(--mella-gold)}
+.notif-item .avatar{width:36px;height:36px;font-size:.95rem;flex-shrink:0}
+</style>
+<div class="dropdown d-inline-block">
+<button class="{% if bell_dark %}notif-bell dark{% else %}notif-bell{% endif %}" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Notificaciones" id="notifBellBtn">
+<i class="bi bi-bell-fill"></i>
+<span class="notif-badge" id="notifBadge" {% if not notif_count %}style="display:none"{% endif %}>{% if notif_count %}{{ notif_count }}{% endif %}</span>
+</button>
+<div class="dropdown-menu dropdown-menu-end notif-menu" aria-labelledby="notifBellBtn">
+<div class="notif-head"><span>NOTIFICACIONES</span><form method="post" action="{% url 'notif_leer_todas' %}" class="m-0">{% csrf_token %}<button class="btn btn-sm py-0" style="background:var(--mella-gold);font-size:.7rem">Marcar leídas</button></form></div>
+<div id="notifList">
+{% for n in notif_items %}<a class="notif-item {% if not n.leida %}unread{% endif %}" href="{% url 'notif_ir' n.id %}"><span class="avatar"><i class="bi {{ n.icono }}"></i></span><span><strong style="font-size:.85rem">{{ n.titulo }}</strong><br><small class="text-muted">{{ n.mensaje|truncatechars:90 }}</small><br><small class="text-muted">{{ n.creada|date:"d M H:i" }}</small></span></a>{% empty %}<p class="text-muted text-center p-3 mb-0">Sin notificaciones.</p>{% endfor %}
+</div>
+<a href="{% url 'notif_lista' %}" class="d-block text-center p-2 text-decoration-none" style="font-weight:700;font-size:.85rem">Ver todas →</a>
+</div>
+</div>
+<script>
+(function(){
+var api="{% url 'notif_api' %}";
+function upd(){
+  fetch(api,{headers:{"X-Requested-With":"XMLHttpRequest"}}).then(function(r){return r.json()}).then(function(d){
+    var b=document.getElementById('notifBadge');
+    if(!b) return;
+    if(d.count>0){b.style.display='flex';b.textContent=d.count>99?'99+':d.count;}
+    else{b.style.display='none';}
+    var box=document.getElementById('notifList');
+    if(box && d.items){
+      if(!d.items.length){box.innerHTML='<p class="text-muted text-center p-3 mb-0">Sin notificaciones.</p>';return;}
+      box.innerHTML=d.items.map(function(n){
+        return '<a class="notif-item unread" href="'+n.url+'"><span class="avatar"><i class="bi '+n.icono+'"></i></span><span><strong style="font-size:.85rem">'+n.titulo+'</strong><br><small class="text-muted">'+n.mensaje+'</small><br><small class="text-muted">'+n.creada+'</small></span></a>';
+      }).join('');
+    }
+  }).catch(function(){});
+}
+// solo refresca el numerito; la lista inicial la pinta el servidor para no parpadear
+setInterval(upd, 30000);
+})();
+</script>

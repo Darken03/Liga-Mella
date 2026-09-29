@@ -1,0 +1,20 @@
+{% extends 'base_capitan.html' %}{% block title %}Jugadores | Capitán{% endblock %}{% block content %}
+<div class="page-head"><h3 class="oswald">Jugadores · {{ equipo.nombre }}</h3>
+<form class="d-flex gap-2" method="get" style="max-width:320px"><select name="torneo" class="form-select" onchange="this.form.submit()">{% for t in torneos %}<option value="{{ t.id }}" {% if torneo and torneo.id == t.id %}selected{% endif %}>{{ t.nombre }} {{ t.temporada }}</option>{% endfor %}</select></form></div>
+<p class="text-muted"><small>Ordenados de mejor a peor por AVG {% if torneo %}en {{ torneo.nombre }}{% endif %} • Toca el nombre para ver perfil completo con torneo actual e historial.</small></p>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Pos</th><th>AVG</th><th>OBP</th><th>SLG</th><th>OPS</th><th>AB/H</th><th>HR</th><th>CI</th><th class="text-end">Acciones</th></tr></thead><tbody>
+{% for j in roster %}<tr class="{% if forloop.counter <= 3 %}leader{% endif %}">
+<td>{{ j.dorsal }}</td>
+<td><a href="{% url 'cap_jugador_detalle' j.id %}" class="d-flex align-items-center gap-2 text-decoration-none text-dark"><span class="rank" style="width:34px;height:34px;font-size:.85rem">{{ forloop.counter }}</span>{% if j.foto %}<img class="player-cutout" src="{{ j.foto.url }}" alt="{{ j.nombre_completo }}">{% else %}<span class="avatar">{{ j.nombre|slice:":1" }}</span>{% endif %}<span><strong>{{ j.nombre_completo }}</strong> {% if j.es_capitan %}<span class="badge bg-warning text-dark">★</span>{% endif %}<br><small class="text-muted">#{{ j.dorsal }} {% if j.usuario %}@{{ j.usuario.username }}{% endif %}</small></span></a></td>
+<td><span class="badge bg-dark">{{ j.posicion }}</span></td>
+<td class="pct">{{ j.avg_actual|floatformat:3 }}</td>
+<td>{% if j.linea_actual %}{{ j.linea_actual.obp|floatformat:3 }}{% else %}—{% endif %}</td>
+<td>{% if j.linea_actual %}{{ j.linea_actual.slg|floatformat:3 }}{% else %}—{% endif %}</td>
+<td><strong>{% if j.linea_actual %}{{ j.linea_actual.ops|floatformat:3 }}{% else %}—{% endif %}</strong></td>
+<td><small>{% if j.linea_actual %}{{ j.linea_actual.ab }}/{{ j.linea_actual.h }}{% else %}—{% endif %}</small></td>
+<td>{% if j.linea_actual %}{{ j.linea_actual.hr }}{% else %}{{ j.hr }}{% endif %}</td>
+<td>{% if j.linea_actual %}{{ j.linea_actual.rbi }}{% else %}{{ j.rbi }}{% endif %}</td>
+<td class="actions"><a class="act view" title="Ver perfil" href="{% url 'cap_jugador_detalle' j.id %}"><i class="bi bi-eye"></i></a> {% if not j.es_capitan %}<a class="act del" title="Expulsar" href="{% url 'cap_jugador_expulsar' j.id %}"><i class="bi bi-box-arrow-right"></i></a>{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="11" class="text-muted">Sin jugadores en el roster.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

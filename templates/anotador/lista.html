@@ -1,0 +1,61 @@
+{% extends 'base_anotador.html' %}{% block content %}
+<style>
+.day-nav{background:#fff;border-radius:14px;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+.day-chip{min-width:52px}
+.gm{background:#fff;border-radius:14px;box-shadow:0 10px 26px rgba(0,0,0,.35);overflow:hidden}
+.gm + .gm{margin-top:8px}
+.gm-hora{background:var(--mella-navy);color:#fff;font-family:Oswald;font-weight:700;font-size:1.15rem;letter-spacing:1px;display:flex;align-items:center;justify-content:center;min-width:76px}
+.gm-logo{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--mella-gold);flex-shrink:0;background:#fff}
+.gm-live{border:2px solid #dc2626;animation:livepulse 1.6s infinite}
+@keyframes livepulse{50%{box-shadow:0 0 0 6px rgba(220,38,38,.25),0 0 22px rgba(220,38,38,.7)}}
+</style>
+<h3 class="oswald text-white mb-1">🎯 Seleccionar juego</h3>
+<p class="text-white-50 mb-3">Elige el domingo y toca <strong>Anotar</strong> para abrir el marcador en vivo</p>
+
+<div class="day-nav p-3 mb-3">
+<div class="d-flex justify-content-between align-items-center gap-2">
+{% if dom_ant %}<a class="btn btn-ghost btn-sm" href="?d={{ dom_ant|date:'Y-m-d' }}">◀ {{ dom_ant|date:"d M" }}</a>{% else %}<span></span>{% endif %}
+<div class="text-center"><h5 class="oswald mb-0">Domingo {{ sel|date:"d M Y" }}{% if nj %} <small class="text-muted">· Jornada {{ nj }}</small>{% endif %}</h5><small class="text-muted">{{ juegos_dia|length }} juego(s) este día</small></div>
+{% if dom_sig %}<a class="btn btn-ghost btn-sm" href="?d={{ dom_sig|date:'Y-m-d' }}">{{ dom_sig|date:"d M" }} ▶</a>{% else %}<span></span>{% endif %}
+</div>
+<div class="d-flex gap-2 justify-content-center flex-wrap mt-2">
+<a class="btn btn-sm {% if sel == hoy %}btn-gold{% else %}btn-ghost{% endif %}" href="?d={{ hoy|date:'Y-m-d' }}">Hoy</a>
+{% for d in dias %}<a class="btn btn-sm day-chip {% if d == sel %}btn-navy{% else %}btn-ghost{% endif %}" href="?d={{ d|date:'Y-m-d' }}">{{ d|date:"d M" }}</a>{% endfor %}
+</div>
+</div>
+
+{% if envivo %}<h5 class="oswald text-white mt-3">🔴 En vivo · toca para continuar</h5>
+{% for j in envivo %}<div class="gm gm-live d-flex align-items-stretch mb-2">
+<div class="gm-hora">{{ j.fecha|date:"H:i" }}</div>
+<div class="p-2 flex-grow-1">
+<div class="d-flex align-items-center gap-2 flex-wrap">
+{% if j.local.logo %}<img class="gm-logo" src="{{ j.local.logo.url }}">{% endif %}<strong>{{ j.local.nombre }} {{ j.carreras_local }}</strong>
+<span class="text-muted">vs</span>
+<strong>{{ j.carreras_visita }} {{ j.visita.nombre }}</strong>{% if j.visita.logo %}<img class="gm-logo" src="{{ j.visita.logo.url }}">{% endif %}
+<span class="badge badge-live">EN VIVO • {{ j.inning_actual }}</span>
+<a class="btn btn-mella btn-sm ms-auto" href="{% url 'anotar_juego' j.id %}">Continuar →</a>
+</div>
+<small class="text-muted">{{ j.torneo.nombre }} • {{ j.estadio }} • {{ j.fecha|date:"d M H:i" }}</small>
+</div>
+</div>{% endfor %}{% endif %}
+
+<h5 class="oswald text-white mt-3">🗓️ Juegos del {{ sel|date:"d M" }}</h5>
+{% for j in juegos_dia %}<div class="gm d-flex align-items-stretch">
+<div class="gm-hora">{{ j.fecha|date:"H:i" }}</div>
+<div class="p-2 flex-grow-1">
+<div class="d-flex align-items-center gap-2 flex-wrap">
+{% if j.visita.logo %}<img class="gm-logo" src="{{ j.visita.logo.url }}">{% endif %}<strong>{{ j.visita.nombre }}</strong>
+<span class="text-muted">vs</span>
+{% if j.local.logo %}<img class="gm-logo" src="{{ j.local.logo.url }}">{% endif %}<strong>{{ j.local.nombre }}</strong>
+<span class="badge {% if j.es_ida %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">{% if j.es_ida %}IDA{% else %}VUELTA{% endif %}</span>
+{% if j.fase != 'regular' %}<span class="badge bg-danger">{{ j.get_fase_display }} {{ j.serie }}</span>{% endif %}
+{% if j.estado == 'envivo' %}<span class="badge badge-live">EN VIVO • {{ j.inning_actual }}</span> <span class="badge bg-dark">{{ j.carreras_visita }} - {{ j.carreras_local }}</span>
+{% elif j.estado == 'final' %}<span class="badge bg-secondary">FINAL</span> <span class="badge bg-dark">{{ j.carreras_visita }} - {{ j.carreras_local }}</span>
+{% else %}<span class="badge bg-light text-dark border">PROGRAMADO</span>{% endif %}
+<a class="btn {% if j.estado == 'final' %}btn-ghost{% else %}btn-mella{% endif %} btn-sm ms-auto" href="{% url 'anotar_juego' j.id %}">{% if j.estado == 'envivo' %}Continuar →{% elif j.estado == 'final' %}Ver{% else %}Anotar →{% endif %}</a>
+</div>
+<small class="text-muted">{{ j.torneo.nombre }} • {{ j.estadio }}</small>
+</div>
+</div>{% empty %}<div class="card card-mella p-4 text-center text-muted">Sin juegos este día. Elige otro domingo arriba.</div>{% endfor %}
+<div class="mt-3"><a href="/" class="text-white">← Salir</a></div>
+{% endblock %}

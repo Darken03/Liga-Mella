@@ -1,0 +1,7 @@
+{% extends 'base_admin.html' %}{% block title %}Reglas | Admin{% endblock %}{% block content %}
+<div class="page-head"><h3 class="oswald">Reglas de la liga</h3><a class="btn btn-mella btn-add" href="{% url 'adm_regla_nueva' %}"><i class="bi bi-plus-lg"></i>Nueva regla</a></div>
+<p class="text-muted"><small>Se muestran en la página pública <a href="/reglas/" target="_blank">/reglas/</a> en el orden indicado. Desmarca <em>Visible</em> para ocultar sin borrar.</small></p>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>#</th><th>Título</th><th>Orden</th><th>Visible</th><th>Actualizada</th><th class="text-end">Acciones</th></tr></thead><tbody>
+{% for r in reglas %}<tr><td>{{ forloop.counter }}</td><td><strong>{{ r.titulo }}</strong><br><small class="text-muted">{{ r.contenido|striptags|truncatewords:14 }}</small></td><td>{{ r.orden }}</td><td>{% if r.activa %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td><td><small>{{ r.actualizada|date:"d M Y H:i" }}</small></td>
+<td class="actions"><a class="act edit" title="Editar" href="{% url 'adm_regla_editar' r.id %}"><i class="bi bi-pencil"></i></a> <a class="act del" title="Eliminar" href="{% url 'adm_regla_eliminar' r.id %}"><i class="bi bi-trash"></i></a></td></tr>{% empty %}<tr><td colspan="6" class="text-muted">Sin reglas. Crea la primera (ej. “No se permite el robo de bases”).</td></tr>{% endfor %}
+</tbody></table></div>{% endblock %}

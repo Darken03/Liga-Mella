@@ -1,0 +1,55 @@
+{% extends 'base_publica.html' %}{% block title %}Mi Perfil | Liga Mella{% endblock %}{% block content %}
+<style>
+.jg-cover{height:220px;border-radius:16px 16px 0 0;background:linear-gradient(120deg,{{ j.equipo.color|default:'#0A1A3A' }} 20%,#050b1d 130%);position:relative;overflow:hidden}
+.jg-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.jg-cover .jg-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Oswald;font-weight:700;font-size:4rem;color:rgba(255,255,255,.18);letter-spacing:6px}
+.jg-bar{background:#fff;border-radius:0 0 16px 16px;box-shadow:0 10px 26px rgba(10,26,58,.12);padding:0 20px 16px}
+.jg-ava{width:120px;height:150px;object-fit:contain;object-position:center bottom;background:transparent;flex-shrink:0;margin-top:-75px;position:relative;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.jg-ava-ph{width:110px;height:110px;border-radius:50%;object-fit:cover;border:5px solid #fff;background:#0A1A3A;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Oswald;font-weight:700;font-size:2rem;margin-top:-55px;position:relative;box-shadow:0 6px 18px rgba(0,0,0,.3);flex-shrink:0}
+@media(max-width:576px){.jg-cover{height:150px}.jg-ava{width:90px;height:112px;margin-top:-56px}.jg-ava-ph{width:84px;height:84px;margin-top:-42px;font-size:1.5rem}}
+</style>
+{% if messages %}{% for m in messages %}<div class="alert alert-{{ m.tags }} alert-dismissible fade show">{{ m }}<button class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endif %}
+{% if j %}
+<div class="jg-cover">{% if j.portada %}<img src="{{ j.portada.url }}" alt="Mi portada">{% else %}<span class="jg-fallback">{{ j.equipo.sigla|default:"MELLA" }}</span>{% endif %}</div>
+<div class="jg-bar mb-3"><div class="d-flex gap-3 align-items-end flex-wrap">
+{% if j.foto %}<img src="{{ j.foto.url }}" class="jg-ava" alt="{{ j.nombre_completo }}">{% else %}<div class="jg-ava-ph">{{ j.nombre|slice:":1" }}</div>{% endif %}
+<div class="flex-grow-1 pt-2"><h2 class="oswald mb-0">#{{ j.dorsal }} {{ j.nombre_completo }} {% if j.es_capitan %}<span class="badge bg-warning text-dark">★ Capitán</span>{% endif %}</h2>
+<div class="mt-1"><span class="badge bg-dark">{{ j.posicion }}</span> <a href="/equipos/{{ j.equipo.id }}/" class="fw-bold text-decoration-none">{{ j.equipo.nombre }}</a> <small class="text-muted">@{{ user.username }} · {{ tot.temps }} temporada(s)</small></div></div>
+</div></div>
+
+<div class="row g-2 mb-3">
+<div class="col-4 col-md-2"><div class="stat-card">AVG<h3 class="oswald">{{ tot.avg|floatformat:3 }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">HR<h3 class="oswald">{{ tot.hr }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">CI<h3 class="oswald">{{ tot.rbi }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">H<h3 class="oswald">{{ tot.h }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">OPS<h3 class="oswald">{{ tot.ops|floatformat:3 }}</h3></div></div>
+<div class="col-4 col-md-2"><div class="stat-card">AB<h3 class="oswald">{{ tot.ab }}</h3></div></div>
+</div>
+
+<div class="row g-3">
+<div class="col-12 col-lg-7">
+<h4 class="sect-title">Mis números por temporada</h4>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Torneo</th><th>AB</th><th>R</th><th>H</th><th>HR</th><th>CI</th><th>AVG</th><th>OPS</th></tr></thead><tbody>
+{% for l in lineas %}<tr><td><small>{{ l.torneo.nombre }} {{ l.torneo.temporada }}</small></td><td>{{ l.ab }}</td><td>{{ l.r }}</td><td>{{ l.h }}</td><td>{{ l.hr }}</td><td><strong>{{ l.rbi }}</strong></td><td class="pct">{{ l.avg|floatformat:3 }}</td><td><strong>{{ l.ops|floatformat:3 }}</strong></td></tr>{% empty %}<tr><td colspan="8" class="text-muted">Aún sin estadísticas registradas.</td></tr>{% endfor %}
+</tbody></table></div>
+</div>
+<div class="col-12 col-lg-5">
+<div class="card card-mella p-3"><h5 class="oswald">Mis fotos</h5>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="accion" value="fotos">
+<div class="mb-3"><label class="frm-label">Foto de perfil</label><div class="d-flex align-items-center gap-2 mb-2">{% if j.foto %}<img src="{{ j.foto.url }}" class="player-cutout" alt="Perfil actual">{% else %}<span class="avatar">{{ j.nombre|slice:":1" }}</span>{% endif %}</div><input type="file" name="foto" accept="image/*" class="form-control">{% if j.foto %}<div class="form-check mt-1"><input type="checkbox" name="quitar_foto" value="1" class="form-check-input" id="qf"><label class="form-check-label" for="qf"><small>Quitar foto actual</small></label></div>{% endif %}</div>
+<div class="mb-3"><label class="frm-label">Foto de portada</label>{% if j.portada %}<img src="{{ j.portada.url }}" class="w-100 mb-2" style="max-height:140px;object-fit:cover;border-radius:10px" alt="Portada actual">{% endif %}<input type="file" name="portada" accept="image/*" class="form-control">{% if j.portada %}<div class="form-check mt-1"><input type="checkbox" name="quitar_portada" value="1" class="form-check-input" id="qp"><label class="form-check-label" for="qp"><small>Quitar portada actual</small></label></div>{% endif %}</div>
+<small class="text-muted">Máximo 5 MB por imagen. Se convierten a WebP solas.</small>
+<button class="btn btn-gold w-100 mt-2">Guardar fotos</button>
+</form></div>
+<div class="d-flex gap-2 mt-3 flex-wrap"><a class="btn btn-gold btn-sm" href="{% url 'configurar' %}">⚙️ Configurar</a><a class="btn btn-ghost btn-sm" href="/cuenta/solicitudes/">Mis solicitudes</a><a class="btn btn-ghost btn-sm" href="/jugadores/{{ j.id }}/">Ver mi página pública →</a></div>
+</div>
+</div>
+{% else %}
+<div class="col-lg-7 mx-auto"><div class="card card-mella p-4 text-center">
+<span class="avatar lg mx-auto mb-2" style="width:72px;height:72px;font-size:1.8rem">{{ user.username|slice:":1"|upper }}</span>
+<h3 class="oswald">@{{ user.username }}</h3>
+<p class="text-muted">Aún no tienes ficha de jugador en ningún equipo. Pide unirte a un equipo y aquí verás tus estadísticas y tus fotos.</p>
+<div class="d-flex gap-2 justify-content-center flex-wrap"><a class="btn btn-gold" href="{% url 'configurar' %}">⚙️ Configurar</a><a class="btn btn-ghost" href="/equipos/">Ver equipos</a><a class="btn btn-ghost" href="/cuenta/solicitudes/">Mis solicitudes</a></div>
+</div></div>
+{% endif %}
+{% endblock %}

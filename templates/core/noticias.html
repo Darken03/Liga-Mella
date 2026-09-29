@@ -1,0 +1,26 @@
+{% extends 'base_publica.html' %}{% block title %}Noticias{% endblock %}{% block content %}
+<style>
+.news-feat{border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(10,26,58,.14);background:#fff;margin-bottom:18px}
+.news-feat .feat-img{height:300px;position:relative;background:linear-gradient(120deg,#0A1A3A 20%,#C81E2E 130%);overflow:hidden}
+.news-feat .feat-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.news-card .news-date{color:#64748b;font-size:.82rem}
+.news-card h5 a:hover,.news-card h6 a:hover{color:var(--mella-red)}
+@media(max-width:576px){.news-feat .feat-img{height:200px}}
+</style>
+<h2 class="sect-title">Noticias de la liga</h2>
+{% if noticias %}
+{% with f=noticias.0 %}
+<div class="news-feat"><div class="row g-0">
+<div class="col-12 col-md-6"><div class="feat-img">{% if f.imagen %}<img src="{{ f.imagen.url }}" alt="{{ f.titulo }}">{% endif %}</div></div>
+<div class="col-12 col-md-6 p-3 p-md-4 d-flex flex-column justify-content-center">
+<span class="badge bg-danger align-self-start mb-2">{{ f.torneo_tag }}</span>{% if f.video_embed_url %} <span class="badge bg-primary align-self-start mb-2"><i class="bi bi-play-circle"></i> Video</span>{% endif %}
+<h3 class="oswald"><a href="/noticias/{{ f.id }}/" class="text-decoration-none text-dark">{{ f.titulo }}</a></h3>
+<p class="text-muted">{{ f.resumen|truncatewords:28 }}</p>
+<small class="text-muted"><i class="bi bi-calendar3"></i> {{ f.fecha|date:"d M Y H:i" }}</small>
+<div class="mt-2"><a href="/noticias/{{ f.id }}/" class="btn btn-mella btn-sm">Leer noticia →</a></div>
+</div>
+</div></div>
+{% endwith %}
+<div class="row g-3">{% for n in noticias|slice:"1:" %}<div class="col-12 col-md-6 col-lg-4"><div class="news-card h-100"><div class="news-img">{% if n.imagen %}<img src="{{ n.imagen.url }}" alt="{{ n.titulo }}">{% endif %}<span class="badge bg-danger position-relative">{{ n.torneo_tag }}</span></div><div class="p-3 d-flex flex-column"><h5 class="oswald mb-1"><a href="/noticias/{{ n.id }}/" class="text-decoration-none text-dark">{{ n.titulo }}</a>{% if n.video_embed_url %} <span class="badge bg-primary" title="Con video"><i class="bi bi-play-circle"></i></span>{% endif %}</h5><p class="mb-1 text-muted">{{ n.resumen|truncatewords:18 }}</p><small class="news-date mt-auto"><i class="bi bi-calendar3"></i> {{ n.fecha|date:"d M Y H:i" }}</small><a href="/noticias/{{ n.id }}/" class="btn btn-sm btn-navy mt-2 align-self-start">Leer →</a></div></div></div>{% endfor %}</div>
+{% else %}<p>Sin noticias.</p>{% endif %}
+{% endblock %}

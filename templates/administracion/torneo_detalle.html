@@ -1,0 +1,48 @@
+{% extends 'base_admin.html' %}{% block content %}
+<div class="page-head"><h3 class="oswald">{{ torneo.nombre }} <small class="text-muted">{{ torneo.temporada }}</small></h3><div class="d-flex gap-1"><a class="btn btn-sm btn-gold" href="{% url 'adm_torneo_sorteo' torneo.id %}"><i class="bi bi-shuffle"></i> Sorteo</a><a class="act edit" title="Editar" href="{% url 'adm_torneo_editar' torneo.id %}"><i class="bi bi-pencil"></i></a><a class="act view" title="Volver" href="{% url 'adm_torneos' %}"><i class="bi bi-arrow-left"></i></a></div></div>
+<h5 class="oswald mt-4">Posiciones del torneo</h5><div class="table-responsive"><table class="tbl"><thead><tr><th>#</th><th>Equipo</th><th>W</th><th>L</th><th>C.A</th><th>C.P</th><th>DIF</th></tr></thead><tbody>
+{% for l in posiciones %}<tr><td>{{ forloop.counter }}</td><td>{{ l.equipo.nombre }}</td><td>{{ l.ganados }}</td><td>{{ l.perdidos }}</td><td>{{ l.ca }}</td><td>{{ l.cp }}</td><td><strong>{% if l.dif > 0 %}+{% endif %}{{ l.dif }}</strong></td></tr>{% empty %}<tr><td colspan="7" class="text-muted">Sin posiciones.</td></tr>{% endfor %}
+</tbody></table></div>
+<h5 class="oswald mt-4">Playoffs · semifinales 1°vs4° / 2°vs3° → final</h5>
+<div class="card card-mella p-3 mb-2">
+<div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+<span>Estado en la página:</span>
+{% if torneo.playoffs_activos %}<span class="badge bg-success">ACTIVOS · visibles en el sitio</span>{% else %}<span class="badge bg-secondary">Ocultos</span>{% endif %}
+{% if torneo.playoffs_activos %}
+<form method="post" action="{% url 'adm_torneo_playoff' torneo.id %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="desactivar_playoffs"><button class="btn btn-sm btn-ghost">Ocultar</button></form>
+{% elif semis %}
+<form method="post" action="{% url 'adm_torneo_playoff' torneo.id %}" class="m-0">{% csrf_token %}<input type="hidden" name="accion" value="activar_playoffs"><button class="btn btn-sm btn-gold">Activar con estos clasificados →</button></form>
+{% endif %}
+</div>
+{% if not semis %}
+<p class="text-muted mb-2"><small>Top 4 actual: {% for l in top4 %}<strong>{{ forloop.counter }}° {{ l.equipo.nombre }}</strong>{% if not forloop.last %} · {% endif %}{% empty %}sin datos{% endfor %}</small></p>
+<form method="post" action="{% url 'adm_torneo_playoff' torneo.id %}" class="row g-2">{% csrf_token %}<input type="hidden" name="accion" value="generar_semis">
+<div class="col-md-3"><label class="frm-label">Semifinal 1 (1° vs 4°)</label><input type="datetime-local" name="fecha_sf1" class="form-control" value="{{ fecha_sf1 }}"></div>
+<div class="col-md-3"><label class="frm-label">Semifinal 2 (2° vs 3°)</label><input type="datetime-local" name="fecha_sf2" class="form-control" value="{{ fecha_sf2 }}"></div>
+<div class="col-md-3"><label class="frm-label">Estadio</label><input type="text" name="estadio" class="form-control" value="Estadio Mella 1" maxlength="100"></div>
+<div class="col-md-3 d-flex align-items-end"><button class="btn btn-gold btn-sm w-100">Generar semifinales</button></div>
+</form>
+{% else %}
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Serie</th><th>Juego</th><th>Fecha</th><th>Resultado</th><th>Estado</th><th></th></tr></thead><tbody>
+{% for j in semis %}<tr><td><span class="badge bg-warning text-dark">{{ j.serie }}</span></td><td><strong>{{ j.local.nombre }}</strong> vs <strong>{{ j.visita.nombre }}</strong></td><td><small>{{ j.fecha|date:"d M H:i" }}</small></td><td><strong>{{ j.carreras_local }} - {{ j.carreras_visita }}</strong></td><td>{{ j.estado }}</td><td class="actions"><a class="act view" title="Ver" href="{% url 'adm_juego_detalle' j.id %}"><i class="bi bi-eye"></i></a> <a class="act edit" title="Editar" href="{% url 'adm_juego_editar' j.id %}"><i class="bi bi-pencil"></i></a></td></tr>{% endfor %}
+</tbody></table></div>
+{% if not final %}
+<form method="post" action="{% url 'adm_torneo_playoff' torneo.id %}" class="row g-2 mt-2">{% csrf_token %}<input type="hidden" name="accion" value="generar_final">
+<div class="col-md-4"><label class="frm-label">Final (ganadores)</label><input type="datetime-local" name="fecha_fin" class="form-control" value="{{ fecha_fin }}"></div>
+<div class="col-md-4"><label class="frm-label">Estadio</label><input type="text" name="estadio_fin" class="form-control" value="Estadio Mella 1" maxlength="100"></div>
+<div class="col-md-4 d-flex align-items-end"><button class="btn btn-gold btn-sm w-100">Crear final con ganadores</button></div>
+</form>
+<small class="text-muted">Requiere ambas semifinales en Final (sin empates).</small>
+{% endif %}
+{% endif %}
+{% if final %}
+<div class="table-responsive mt-2"><table class="tbl"><thead><tr><th>Serie</th><th>Final</th><th>Fecha</th><th>Resultado</th><th>Estado</th><th></th></tr></thead><tbody>
+{% for j in final %}<tr><td><span class="badge bg-warning text-dark">🏆 {{ j.serie }}</span></td><td><strong>{{ j.local.nombre }}</strong> vs <strong>{{ j.visita.nombre }}</strong></td><td><small>{{ j.fecha|date:"d M H:i" }}</small></td><td><strong>{{ j.carreras_local }} - {{ j.carreras_visita }}</strong></td><td>{{ j.estado }}</td><td class="actions"><a class="act view" title="Ver" href="{% url 'adm_juego_detalle' j.id %}"><i class="bi bi-eye"></i></a> <a class="act edit" title="Editar" href="{% url 'adm_juego_editar' j.id %}"><i class="bi bi-pencil"></i></a></td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% if semis or final %}<form method="post" action="{% url 'adm_torneo_playoff' torneo.id %}" class="mt-2" onsubmit="return confirm('¿Eliminar todos los juegos de playoffs de este torneo?')">{% csrf_token %}<input type="hidden" name="accion" value="eliminar_playoffs"><button class="btn btn-sm btn-ghost text-danger">Eliminar playoffs</button></form>{% endif %}
+</div>
+<h5 class="oswald mt-4">Calendario del sorteo</h5>
+{% for dia, lista in domingos.items %}<div class="card card-mella p-3 mb-2"><h6 class="oswald mb-2">Domingo {{ dia|date:"d M Y" }} <small class="text-muted">· {{ lista|length }} juegos</small></h6><div class="table-responsive"><table class="tbl"><thead><tr><th>Hora</th><th>Juego</th><th>Resultado</th><th>Estado</th></tr></thead><tbody>
+{% for j in lista %}<tr><td><small><strong>{{ j.fecha|date:"H:i" }}</strong></small></td><td><strong>{{ j.local.nombre }}</strong> vs <strong>{{ j.visita.nombre }}</strong>{% if j.fase != 'regular' %} <span class="badge bg-danger">{{ j.get_fase_display }} {{ j.serie }}</span>{% elif j.serie == 'INAUG' %} <span class="badge bg-success">INAUGURAL</span>{% endif %}<br><small class="text-muted">{{ j.estadio }}</small></td><td><strong>{{ j.carreras_local }} - {{ j.carreras_visita }}</strong></td><td><span class="badge {% if j.estado == 'envivo' %}badge-live{% elif j.estado == 'final' %}bg-secondary{% else %}bg-dark{% endif %}">{{ j.estado }}</span></td></tr>{% endfor %}
+</tbody></table></div></div>{% empty %}<p class="text-muted">Sin juegos. Usa el botón <strong>Sorteo</strong> para generar el calendario.</p>{% endfor %}{% endblock %}

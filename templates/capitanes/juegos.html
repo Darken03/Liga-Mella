@@ -1,0 +1,27 @@
+{% extends 'base_capitan.html' %}{% block title %}Juegos | Capitán{% endblock %}{% block content %}
+<div class="page-head"><h3 class="oswald">Juegos · {{ equipo.nombre }}</h3>
+<form class="d-flex gap-2" method="get" style="max-width:320px"><select name="torneo" class="form-select" onchange="this.form.submit()">{% for t in torneos %}<option value="{{ t.id }}" {% if torneo and torneo.id == t.id %}selected{% endif %}>{{ t.nombre }} {{ t.temporada }}</option>{% endfor %}</select></form></div>
+
+<h5 class="oswald">Por jugar ({{ pendientes|length }})</h5>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Fecha</th><th>Rival</th><th>Condición</th><th>Estadio</th><th>Estado</th><th></th></tr></thead><tbody>
+{% for j in pendientes %}<tr>
+<td><small>{{ j.fecha|date:"d M H:i" }}</small></td>
+<td><strong>{% if j.local_id == equipo.id %}{{ j.visita.nombre }}{% else %}{{ j.local.nombre }}{% endif %}</strong><br><small class="text-muted">{{ j.torneo.nombre }}</small></td>
+<td>{% if j.local_id == equipo.id %}<span class="badge bg-navy bg-dark">Local</span>{% else %}<span class="badge bg-secondary">Visita</span>{% endif %}</td>
+<td><small>{{ j.estadio }}</small></td>
+<td><span class="badge {% if j.estado == 'envivo' %}badge-live{% else %}bg-warning text-dark{% endif %}">{{ j.estado }}</span>{% if j.fase != 'regular' %}<br><span class="badge bg-danger mt-1">{{ j.get_fase_display }} {{ j.serie }}</span>{% endif %}</td>
+<td class="actions"><a class="act view" href="{% url 'cap_juego_detalle' j.id %}" title="Ver detalle"><i class="bi bi-eye"></i></a> <a class="act edit" href="{% url 'cap_alin_editar' j.id %}" title="Alinear"><i class="bi bi-diagram-3"></i></a></td>
+</tr>{% empty %}<tr><td colspan="6" class="text-muted">No tienes juegos pendientes en esta temporada.</td></tr>{% endfor %}
+</tbody></table></div>
+
+<h5 class="oswald mt-4">Anteriores ({{ anteriores|length }})</h5>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Fecha</th><th>Partido</th><th>Marcador</th><th>Res</th><th></th></tr></thead><tbody>
+{% for j in anteriores %}<tr>
+<td><small>{{ j.fecha|date:"d M" }}</small></td>
+<td><small>{{ j.local.nombre }} vs {{ j.visita.nombre }}</small>{% if j.fase != 'regular' %}<br><span class="badge bg-danger">{{ j.get_fase_display }} {{ j.serie }}</span>{% endif %}</td>
+<td><strong>{{ j.carreras_local }} - {{ j.carreras_visita }}</strong></td>
+<td>{% if j.local_id == equipo.id %}{% if j.carreras_local > j.carreras_visita %}<span class="badge bg-success">G</span>{% elif j.carreras_local < j.carreras_visita %}<span class="badge bg-danger">P</span>{% else %}<span class="badge bg-secondary">E</span>{% endif %}{% else %}{% if j.carreras_visita > j.carreras_local %}<span class="badge bg-success">G</span>{% elif j.carreras_visita < j.carreras_local %}<span class="badge bg-danger">P</span>{% else %}<span class="badge bg-secondary">E</span>{% endif %}{% endif %}</td>
+<td class="actions"><a class="act view" href="{% url 'cap_juego_detalle' j.id %}"><i class="bi bi-eye"></i></a></td>
+</tr>{% empty %}<tr><td colspan="5" class="text-muted">Sin juegos finalizados.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

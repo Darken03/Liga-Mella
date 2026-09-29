@@ -1,0 +1,12 @@
+{% extends 'base_publica.html' %}{% block title %}Reglas | Liga Mella{% endblock %}{% block content %}
+<div class="jornada-hero mb-3"><h2>REGLAS</h2><span class="jornada-sub">DE LA LIGA MELLA</span></div>
+{% for r in reglas %}
+<div class="card card-mella p-3 mb-2">
+  <h5 class="oswald mb-1"><span class="rank" style="width:34px;height:34px;font-size:.9rem;display:inline-flex">{{ forloop.counter }}</span> {{ r.titulo }}</h5>
+  <div style="white-space:pre-line">{{ r.contenido|safe }}</div>
+  <small class="text-muted">Actualizada {{ r.actualizada|date:"d M Y" }}</small>
+</div>
+{% empty %}
+<div class="card card-mella p-4 text-center text-muted">Aún no hay reglas publicadas. Vuelve pronto.</div>
+{% endfor %}
+{% endblock %}

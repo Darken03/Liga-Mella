@@ -1,0 +1,17 @@
+{% extends 'base_admin.html' %}{% block content %}
+<div class="col-lg-8"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">{{ titulo }}</h3><a class="act view" href="{% url 'adm_juegos' %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}
+<div class="frm-sec"><i class="bi bi-lightning"></i> El juego</div>
+<div class="row g-3">
+<div class="col-12"><label class="frm-label">Torneo</label>{{ form.torneo }}</div>
+<div class="col-md-6"><label class="frm-label">Local</label>{{ form.local }}</div>
+<div class="col-md-6"><label class="frm-label">Visita</label>{{ form.visita }}</div>
+<div class="col-md-6"><label class="frm-label">Fecha y hora</label>{{ form.fecha }}</div>
+<div class="col-md-6"><label class="frm-label">Estadio</label>{{ form.estadio }}</div>
+<div class="col-md-6"><label class="frm-label">Estado</label>{{ form.estado }}</div>
+<div class="col-md-6"><label class="frm-label">Fase</label>{{ form.fase }}</div>
+<div class="col-md-6"><label class="frm-label">Anotador</label>{{ form.anotador }}</div>
+</div>
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_juegos' %}">Cancelar</a><button class="btn btn-mella btn-add"><i class="bi bi-check-lg"></i>Guardar</button></div>
+</form></div></div>{% endblock %}

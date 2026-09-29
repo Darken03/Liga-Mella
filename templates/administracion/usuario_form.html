@@ -1,0 +1,19 @@
+{% extends 'base_admin.html' %}{% block content %}<div class="col-lg-8"><div class="frm-card">
+<div class="page-head"><h3 class="oswald">{{ titulo }}</h3><a class="act view" href="{% url 'adm_usuarios' %}" title="Volver"><i class="bi bi-arrow-left"></i></a></div>
+<form method="post">{% csrf_token %}
+<div class="frm-sec"><i class="bi bi-person-badge"></i> Cuenta</div>
+<div class="row g-3">
+<div class="col-md-6"><label class="frm-label">Username *</label><input name="username" class="form-control" value="{{ u.username|default:'' }}" required></div>
+<div class="col-md-6"><label class="frm-label">Rol</label><select name="rol" class="form-select"><option value="fan" {% if u.rol == 'fan' %}selected{% endif %}>Aficionado/Jugador</option><option value="capitan" {% if u.rol == 'capitan' %}selected{% endif %}>Capitán</option><option value="director" {% if u.rol == 'director' %}selected{% endif %}>Director</option><option value="anotador" {% if u.rol == 'anotador' %}selected{% endif %}>Anotador</option><option value="admin" {% if u.rol == 'admin' %}selected{% endif %}>Administrador</option></select></div>
+<div class="col-md-6"><label class="frm-label">Nombre</label><input name="first_name" class="form-control" value="{{ u.first_name|default:'' }}"></div>
+<div class="col-md-6"><label class="frm-label">Apellido</label><input name="last_name" class="form-control" value="{{ u.last_name|default:'' }}"></div>
+<div class="col-12"><label class="frm-label">Password {% if not u %}(obligatorio){% else %}(vacío = no cambiar){% endif %}</label><input type="password" name="password" class="form-control"></div>
+</div>
+<div class="frm-sec"><i class="bi bi-card-text"></i> Datos físicos</div>
+<div class="row g-3">
+<div class="col-md-4"><label class="frm-label">Carnet identidad</label><input name="ci" class="form-control" value="{{ u.ci|default:'' }}"></div>
+<div class="col-md-4"><label class="frm-label">Edad</label><input type="number" name="edad" class="form-control" value="{{ u.edad|default:'' }}"></div>
+<div class="col-md-4"><label class="frm-label">Estatura</label><input name="estatura" class="form-control" placeholder="1.80m" value="{{ u.estatura|default:'' }}"></div>
+</div>
+<div class="frm-actions"><a class="btn btn-ghost" href="{% url 'adm_usuarios' %}">Cancelar</a><button class="btn btn-mella btn-add"><i class="bi bi-check-lg"></i>Guardar</button></div>
+</form></div></div>{% endblock %}

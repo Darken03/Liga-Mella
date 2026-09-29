@@ -1,0 +1,293 @@
+{% extends 'base_capitan.html' %}{% load static %}{% block title %}Alinear | Capitán{% endblock %}{% block content %}
+<style>
+.fplayer.sel .dot:not(.has-photo){background:var(--mella-gold)!important;transform:scale(1.12)}
+.fplayer.sel .pos{background:var(--mella-red)!important}
+.fplayer.filled .dot:not(.has-photo){border-color:#16a34a}
+.fplayer.sel .fdot-img{transform:scale(1.12)}
+.roster-item{cursor:pointer;transition:all .15s;border:2px solid transparent}
+.roster-item:hover{border-color:var(--mella-gold);transform:translateY(-1px)}
+.roster-item.in-lineup{border-color:#16a34a;background:#f0fdf4}
+.roster-item.in-field{border-color:var(--mella-navy)}
+#lineupList .lineup-item{cursor:grab;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--mella-line);border-radius:10px;padding:6px 8px;margin-bottom:6px}
+#lineupList .lineup-item.dragging{opacity:.5;border-color:var(--mella-gold)}
+#lineupList .ord{width:30px;height:30px;border-radius:50%;background:#0A1A3A;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Oswald;font-weight:700;flex-shrink:0}
+#posHint{min-height:44px}
+</style>
+
+<div class="page-head"><h3 class="oswald">Alinear · {{ juego.local.nombre }} vs {{ juego.visita.nombre }}</h3><div class="d-flex gap-1"><a class="act view" href="{% url 'cap_alineaciones' %}"><i class="bi bi-arrow-left"></i></a><a class="act view" href="{% url 'cap_juego_detalle' juego.id %}"><i class="bi bi-eye"></i></a></div></div>
+<p class="text-muted"><small>{{ juego.fecha|date:"d M H:i" }} • {{ juego.estadio }} • {{ juego.torneo.nombre }} • <strong>1.</strong> Toca el terreno <strong>2.</strong> toca el jugador • Orden bateo hasta <strong>16</strong> (10 defensa + BD + 5 asignados).</small></p>
+
+<div class="row g-3">
+<!-- TERRENO + LINEUP -->
+<div class="col-12 col-lg-7">
+<div class="field-wrap">
+<div class="field-photo">
+<img src="{% static 'img/campo.png' %}" alt="Terreno">
+<button type="button" class="fplayer" data-pos="LCF" style="left:33%;top:24%"><span class="pos">LCF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="RCF" style="left:67%;top:24%"><span class="pos">RCF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="LF" style="left:15%;top:40%"><span class="pos">LF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="RF" style="left:85%;top:40%"><span class="pos">RF</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="SS" style="left:40%;top:48%"><span class="pos">SS</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="2B" style="left:60%;top:48%"><span class="pos">2B</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="3B" style="left:28%;top:62%"><span class="pos">3B</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="1B" style="left:72%;top:62%"><span class="pos">1B</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="P" style="left:50%;top:65%"><span class="pos">P</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer" data-pos="C" style="left:50%;top:84%"><span class="pos">C</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BD" style="left:11%;top:58%" title="Bateador designado"><span class="pos">BD</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA1" style="left:89%;top:61%" title="Bateador asignado 1"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA2" style="left:11%;top:73%" title="Bateador asignado 2"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA3" style="left:89%;top:76%" title="Bateador asignado 3"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA4" style="left:11%;top:88%" title="Bateador asignado 4"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+<button type="button" class="fplayer extra" data-pos="BA5" style="left:89%;top:91%" title="Bateador asignado 5"><span class="pos">BA</span><span class="dot">?</span><span class="fname"></span></button>
+</div>
+<div id="posHint" class="alert alert-light mt-2 mb-0 py-2"><small id="posHintTxt">Toca una posición del terreno para seleccionarla…</small></div>
+<div class="d-flex gap-2 mt-2 flex-wrap"><button type="button" class="btn btn-sm btn-ghost" id="btnClearPos">Quitar de posición</button><button type="button" class="btn btn-sm btn-ghost" id="btnVaciar">Vaciar terreno</button><span class="ms-auto"><small class="text-muted"><span id="countField">0</span>/10 defensa • <span id="countExtra">0</span>/6 BD+BA • <span id="countBat">0</span>/16 bateo</small></span></div>
+</div>
+
+<div class="card card-mella p-3 mt-3"><h5 class="oswald">Orden al bate <small class="text-muted">(toca ↑↓ o arrastra)</small></h5>
+<div id="lineupList"></div>
+<div class="d-flex gap-2"><button type="button" class="btn btn-sm btn-ghost" id="btnAuto">Auto 1-10 terreno</button><button type="button" class="btn btn-sm btn-ghost" id="btnVaciarBat">Vaciar bateo</button></div>
+<small class="text-muted">El BD y los 5 asignados se colocan abajo-derecha del terreno.</small>
+</div>
+</div>
+
+<!-- ROSTER + GUARDAR -->
+<div class="col-12 col-lg-5">
+<div class="card card-mella p-3"><h5 class="oswald">Roster · {{ roster|length }} <small class="text-muted">— toca para colocar</small></h5>
+<div class="mb-2"><input id="filterRoster" class="form-control form-control-sm" placeholder="Filtrar jugador…"></div>
+<div id="rosterList" class="d-flex flex-column gap-2" style="max-height:420px;overflow:auto">
+{% for j in roster %}<div class="roster-item card p-2 d-flex flex-row align-items-center gap-2" data-jid="{{ j.id }}" data-nombre="{{ j.nombre_completo|escape }}" data-dorsal="{{ j.dorsal }}" data-foto="{% if j.foto %}{{ j.foto.url }}{% endif %}">
+{% if j.foto %}<img src="{{ j.foto.url }}" class="player-cutout" alt="{{ j.nombre_completo }}">{% else %}<span class="avatar">{{ j.nombre|slice:":1" }}</span>{% endif %}
+<div class="flex-grow-1"><strong>{{ j.nombre_completo }}</strong> <small class="text-muted">#{{ j.dorsal }} • {{ j.posicion }}</small><br><small class="bStatus text-muted"></small></div>
+<button type="button" class="act view btnAddBat" title="Añadir/quitar del bateo"><i class="bi bi-list-ol"></i></button>
+</div>{% endfor %}
+</div>
+</div>
+
+<div class="card card-mella p-3 mt-3"><h6 class="oswald">Guardar alineación</h6>
+<form method="post" id="alinForm">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+<div class="mb-2"><label class="frm-label">Notas</label><input type="text" name="notas" class="form-control" value="{{ alin.notas }}" maxlength="200" placeholder="Ej: titular vs Toros"></div>
+<div id="hiddenRows"></div>
+<button class="btn btn-gold w-100" id="btnGuardar">Guardar (<span id="countSave">0</span>) →</button>
+</form></div>
+
+<div class="card card-mella p-3 mt-3"><h6 class="oswald">Cargar plantilla</h6><form method="post">{% csrf_token %}<input type="hidden" name="accion" value="cargar_plantilla"><select name="plantilla" class="form-select mb-2">{% for p in plantillas %}<option value="{{ p.id }}">{{ p.nombre }} ({{ p.detalles.count }})</option>{% endfor %}</select><button class="btn btn-navy btn-sm w-100" {% if not plantillas %}disabled{% endif %}>Aplicar a este juego</button></form></div>
+{% if juego_pareja %}<div class="card card-mella p-3 mt-3"><h6 class="oswald">Doble cartelera ida/vuelta</h6><small class="text-muted">El mismo día juegas también: {% for pj in juego_pareja %}<strong>{{ pj.local.nombre }} vs {{ pj.visita.nombre }} ({{ pj.fecha|date:"H:i" }})</strong>{% if not forloop.last %}, {% endif %}{% endfor %}. Copia esta alineación para no alinear dos veces.</small><form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="accion" value="copiar_pareja"><button class="btn btn-navy btn-sm w-100">Copiar a juego pareja →</button></form></div>{% endif %}
+<div class="card card-mella p-3 mt-3"><h6 class="oswald">Guardar como plantilla</h6><form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar_plantilla"><input type="text" name="nombre_plantilla" class="form-control mb-2" placeholder="Ej: Titular vs Toros" maxlength="100"><button class="btn btn-gold btn-sm w-100">Guardar plantilla actual</button></form></div>
+</div>
+</div>
+
+<script>
+(function(){
+var DEF = ["P","C","1B","2B","SS","3B","LF","LCF","RCF","RF"];
+var SLOTS_EXTRA = ["BD","BA1","BA2","BA3","BA4","BA5"];
+var DISP = {BA1:'BA',BA2:'BA',BA3:'BA',BA4:'BA',BA5:'BA'};
+function dispPos(p){ return DISP[p]||p; }
+var roster = {};
+document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+  roster[el.dataset.jid] = {id: el.dataset.jid, nombre: el.dataset.nombre, dorsal: el.dataset.dorsal, foto: el.dataset.foto||'', el: el};
+});
+// estado inicial desde servidor
+var field = {P:null,C:null,"1B":null,"2B":null,SS:null,"3B":null,LF:null,LCF:null,RCF:null,RF:null,BD:null,BA1:null,BA2:null,BA3:null,BA4:null,BA5:null};
+var playerPos = {};
+var lineup = [];
+{% for d in detalles_list %}lineup.push("{{ d.jugador_id }}");playerPos["{{ d.jugador_id }}"]="{{ d.posicion }}";(function(){var p="{{ d.posicion }}",jid="{{ d.jugador_id }}";if(DEF.includes(p)){field[p]=jid;}else if(p==="BD"){field.BD=jid;playerPos[jid]="BD";}else if(p==="BA"){for(var i=0;i<SLOTS_EXTRA.length;i++){var s=SLOTS_EXTRA[i];if(s!=="BD"&&!field[s]){field[s]=jid;playerPos[jid]=s;break;}}}})();{% endfor %}
+// jugadores con pos no defensiva quedan EH implícito
+var selectedPos = null;
+var posHintTxt = document.getElementById('posHintTxt');
+
+function jugName(id){ return roster[id] ? roster[id].nombre.split(' ').map(function(w,i){return i==0?w[0]+'.':w}).join(' ') : '?'; }
+function shortName(id){ var r=roster[id]; if(!r) return '?'; var parts=r.nombre.split(' '); return (parts[0][0]+'. '+(parts[1]||'')).trim(); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function fotoMini(r, size){
+  if(r && r.foto){ return '<img src="'+esc(r.foto)+'" alt="'+esc(r.nombre)+'" style="width:'+(size||32)+'px;height:'+Math.round((size||32)*1.18)+'px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))">'; }
+  return '<span class="avatar" style="width:'+(size||32)+'px;height:'+(size||32)+'px;font-size:.8rem">'+esc((r?r.nombre:'?')[0])+'</span>';
+}
+
+function renderField(){
+  document.querySelectorAll('.fplayer').forEach(function(b){
+    var pos=b.dataset.pos, jid=field[pos];
+    var dot=b.querySelector('.dot'), fn=b.querySelector('.fname'), lb=b.querySelector('.pos');
+    b.classList.toggle('sel', pos===selectedPos);
+    b.classList.toggle('filled', !!jid);
+    if(jid && roster[jid]){
+      var r=roster[jid];
+      if(r.foto){ dot.classList.add('has-photo'); dot.innerHTML='<img class="fdot-img" src="'+esc(r.foto)+'" alt="'+esc(r.nombre)+'">'; }
+      else { dot.classList.remove('has-photo'); dot.textContent=r.dorsal; }
+      fn.textContent=pad2(r.dorsal)+'. '+shortName(jid); b.dataset.name=r.nombre+' #'+r.dorsal+' '+dispPos(pos); lb.textContent=dispPos(pos);
+    }
+    else { dot.classList.remove('has-photo'); dot.textContent='?'; fn.textContent='Vacante'; lb.textContent=dispPos(pos); }
+  });
+  document.getElementById('countField').textContent = DEF.map(function(p){return field[p]}).filter(Boolean).length;
+  document.getElementById('countExtra').textContent = SLOTS_EXTRA.map(function(p){return field[p]}).filter(Boolean).length;
+  if(selectedPos){ var occ=field[selectedPos]; posHintTxt.innerHTML='Pos <strong>'+esc(dispPos(selectedPos))+'</strong> seleccionada '+(occ&&roster[occ]?'('+esc(roster[occ].nombre)+')':'vacante')+' — toca un jugador del roster para colocar/sustituir.'; }
+  else { posHintTxt.textContent='Toca una posición del terreno para seleccionarla…'; }
+}
+function renderLineup(){
+  var box=document.getElementById('lineupList'); box.innerHTML='';
+  lineup.forEach(function(jid, idx){
+    var r=roster[jid]; if(!r) return;
+    var pos=playerPos[jid]||'EH';
+    var div=document.createElement('div'); div.className='lineup-item'; div.draggable=true; div.dataset.jid=jid;
+    div.innerHTML='<span class="ord">'+(idx+1)+'</span>'+fotoMini(r,32)+'<span class="flex-grow-1"><strong>'+esc(r.nombre)+'</strong> <small class="text-muted">#'+esc(r.dorsal)+'</small><br><span class="badge bg-dark">'+esc(dispPos(pos))+'</span></span><button type="button" class="act view mvUp" title="Subir"><i class="bi bi-chevron-up"></i></button><button type="button" class="act view mvDn" title="Bajar"><i class="bi bi-chevron-down"></i></button><button type="button" class="act del rmBat" title="Quitar"><i class="bi bi-x"></i></button>';
+    box.appendChild(div);
+  });
+  if(!lineup.length) box.innerHTML='<p class="text-muted">Vacío — toca jugadores del roster para añadir (máx 15).</p>';
+  document.getElementById('countBat').textContent=lineup.length;
+  document.getElementById('countSave').textContent=lineup.length;
+  // roster estados
+  document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+    var jid=el.dataset.jid, inL=lineup.includes(jid), inF=Object.values(field).includes(jid);
+    el.classList.toggle('in-lineup', inL); el.classList.toggle('in-field', inF);
+    var st=el.querySelector('.bStatus');
+    if(inF){ var p=dispPos(playerPos[jid]||'?'); var ord=lineup.indexOf(jid)+1; st.textContent='En terreno '+p+' • Bate '+(ord||'—'); }
+    else if(inL){ st.textContent='Bate '+(lineup.indexOf(jid)+1)+' • EH'; }
+    else st.textContent='Disponible';
+  });
+  syncHidden();
+}
+function syncHidden(){
+  var h=document.getElementById('hiddenRows'); h.innerHTML='';
+  lineup.forEach(function(jid, idx){
+    var pos=playerPos[jid]||'EH';
+    // defensa y BD se respetan; BA1..BA5 se guardan como BA; resto EH
+    if(!DEF.includes(pos)){
+      if(pos==='BD') pos='BD';
+      else if(/^BA[1-5]$/.test(pos)) pos='BA';
+      else pos='EH';
+    }
+    h.innerHTML+='<input type="hidden" name="jugador" value="'+jid+'"><input type="hidden" name="posicion" value="'+pos+'"><input type="hidden" name="orden" value="'+(idx+1)+'">';
+  });
+}
+function ensureInLineup(jid){
+  if(!lineup.includes(jid)){
+    if(lineup.length>=16){ alert('Máximo 16 bateadores (10 defensa + BD + 5 asignados).'); return false; }
+    lineup.push(jid);
+    if(!playerPos[jid]) playerPos[jid]='EH';
+  }
+  return true;
+}
+function assignToField(pos, jid){
+  if(!roster[jid]) return;
+  var prevOcc = field[pos];
+  // dónde jugaba el nuevo antes?
+  var prevPosOfNew = null;
+  for(var k in field){ if(field[k]===jid) prevPosOfNew=k; }
+  if(prevOcc===jid){ selectedPos=null; renderField(); renderLineup(); return; } // ya está
+  if(prevPosOfNew){
+    // swap
+    field[prevPosOfNew]=prevOcc||null;
+    field[pos]=jid;
+    playerPos[jid]=pos;
+    if(prevOcc){ playerPos[prevOcc]=prevPosOfNew; }
+  } else {
+    field[pos]=jid;
+    playerPos[jid]=pos;
+    if(prevOcc && prevOcc!==jid){ playerPos[prevOcc]='EH'; } // desalojado queda bateando EH
+  }
+  ensureInLineup(jid);
+  if(prevOcc) ensureInLineup(prevOcc);
+  selectedPos=null;
+  renderField(); renderLineup();
+}
+// eventos terreno
+document.querySelectorAll('.fplayer').forEach(function(b){
+  b.addEventListener('click', function(){
+    selectedPos = (selectedPos===b.dataset.pos) ? null : b.dataset.pos;
+    renderField();
+  });
+});
+document.getElementById('btnClearPos').addEventListener('click', function(){
+  if(!selectedPos){ alert('Selecciona una posición primero.'); return; }
+  var jid=field[selectedPos];
+  if(jid){ field[selectedPos]=null; playerPos[jid]='EH'; }
+  selectedPos=null; renderField(); renderLineup();
+});
+document.getElementById('btnVaciar').addEventListener('click', function(){
+  for(var k in field) field[k]=null;
+  // todos a EH
+  lineup.forEach(function(jid){ playerPos[jid]='EH'; });
+  selectedPos=null; renderField(); renderLineup();
+});
+// roster click
+document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+  el.addEventListener('click', function(e){
+    if(e.target.closest('.btnAddBat')) return; // lo maneja abajo
+    var jid=el.dataset.jid;
+    if(selectedPos){ assignToField(selectedPos, jid); }
+    else {
+      // toggle bateo
+      if(lineup.includes(jid)){
+        // quitar
+        lineup=lineup.filter(function(x){return x!==jid});
+        // si estaba en terreno, liberarlo
+        for(var k in field){ if(field[k]===jid) field[k]=null; }
+        delete playerPos[jid];
+      } else {
+        if(!ensureInLineup(jid)) return;
+      }
+      renderField(); renderLineup();
+    }
+  });
+});
+document.querySelectorAll('.btnAddBat').forEach(function(b){
+  b.addEventListener('click', function(e){
+    e.stopPropagation();
+    var jid=b.closest('.roster-item').dataset.jid;
+    if(lineup.includes(jid)){ lineup=lineup.filter(function(x){return x!==jid}); for(var k in field){ if(field[k]===jid) field[k]=null; } delete playerPos[jid]; }
+    else { if(!ensureInLineup(jid)) return; }
+    renderField(); renderLineup();
+  });
+});
+// filtro
+document.getElementById('filterRoster').addEventListener('input', function(){
+  var q=this.value.toLowerCase();
+  document.querySelectorAll('#rosterList .roster-item').forEach(function(el){
+    el.style.display = el.dataset.nombre.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+// lineup botones + drag
+document.getElementById('lineupList').addEventListener('click', function(e){
+  var item=e.target.closest('.lineup-item'); if(!item) return;
+  var jid=item.dataset.jid, i=lineup.indexOf(jid);
+  if(e.target.closest('.rmBat')){ lineup.splice(i,1); for(var k in field){ if(field[k]===jid) field[k]=null; } delete playerPos[jid]; }
+  else if(e.target.closest('.mvUp') && i>0){ lineup.splice(i-1,0,lineup.splice(i,1)[0]); }
+  else if(e.target.closest('.mvDn') && i<lineup.length-1){ lineup.splice(i+1,0,lineup.splice(i,1)[0]); }
+  else return;
+  renderField(); renderLineup();
+});
+var dragEl=null;
+document.getElementById('lineupList').addEventListener('dragstart', function(e){ var it=e.target.closest('.lineup-item'); if(!it) return; dragEl=it; it.classList.add('dragging'); });
+document.getElementById('lineupList').addEventListener('dragend', function(){ if(dragEl) dragEl.classList.remove('dragging'); dragEl=null; });
+document.getElementById('lineupList').addEventListener('dragover', function(e){
+  e.preventDefault();
+  var over=e.target.closest('.lineup-item'); if(!over||!dragEl||over===dragEl) return;
+  var box=this, rect=over.getBoundingClientRect(), after=(e.clientY-rect.top)>rect.height/2;
+  box.insertBefore(dragEl, after?over.nextSibling:over);
+});
+document.getElementById('lineupList').addEventListener('drop', function(e){
+  e.preventDefault();
+  var order=[...this.querySelectorAll('.lineup-item')].map(function(x){return x.dataset.jid});
+  if(order.length) lineup=order;
+  renderField(); renderLineup();
+});
+document.getElementById('btnAuto').addEventListener('click', function(){
+  // ordena lineup poniendo primero los del terreno en orden defensivo P C 1B...
+  // y luego BD + asignados
+  var orderDef=["P","C","1B","2B","3B","SS","LF","LCF","RCF","RF"];
+  var terrJugs=orderDef.map(function(p){return field[p]}).filter(Boolean);
+  var extraJugs=SLOTS_EXTRA.map(function(p){return field[p]}).filter(Boolean).filter(function(j){return terrJugs.indexOf(j)<0});
+  var resto=lineup.filter(function(j){return !terrJugs.includes(j)&&!extraJugs.includes(j)});
+  lineup=[...new Set([...terrJugs, ...extraJugs, ...resto])].slice(0,16);
+  renderField(); renderLineup();
+});
+document.getElementById('btnVaciarBat').addEventListener('click', function(){ lineup=[]; for(var k in field) field[k]=null; playerPos={}; renderField(); renderLineup(); });
+document.getElementById('alinForm').addEventListener('submit', function(e){
+  if(!lineup.length){ e.preventDefault(); alert('Añade al menos 1 bateador.'); return; }
+  if(lineup.length>16){ e.preventDefault(); alert('Máximo 16.'); return; }
+});
+renderField(); renderLineup();
+})();
+</script>
+{% endblock %}

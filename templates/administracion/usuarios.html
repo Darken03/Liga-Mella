@@ -1,0 +1,11 @@
+{% extends 'base_admin.html' %}{% block title %}Usuarios | Admin{% endblock %}{% block content %}
+<div class="page-head"><h3 class="oswald">Usuarios ({{ usuarios|length }})</h3><a class="btn btn-mella btn-add" href="{% url 'adm_usuario_nuevo' %}"><i class="bi bi-plus-lg"></i>Nuevo usuario</a></div>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>CI</th><th>Edad</th><th>Est.</th><th class="text-end">Acciones</th></tr></thead><tbody>
+{% for u in usuarios %}<tr>
+<td><span class="d-flex align-items-center gap-2"><span class="avatar">{{ u.username|slice:":1"|upper }}</span><strong>{{ u.username }}</strong></span></td>
+<td><small>{{ u.first_name }} {{ u.last_name }}</small></td>
+<td><span class="badge {% if u.rol == 'admin' %}bg-danger{% elif u.rol == 'capitan' %}bg-warning text-dark{% elif u.rol == 'anotador' %}bg-primary{% else %}bg-secondary{% endif %}">{{ u.rol }}</span></td>
+<td><small>{{ u.ci|default:"—" }}</small></td><td>{{ u.edad|default:"—" }}</td><td><small>{{ u.estatura|default:"—" }}</small></td>
+<td class="actions"><a class="act edit" title="Editar" href="{% url 'adm_usuario_editar' u.id %}"><i class="bi bi-pencil"></i></a> <a class="act del" title="Eliminar" href="{% url 'adm_usuario_eliminar' u.id %}"><i class="bi bi-trash"></i></a></td>
+</tr>{% endfor %}
+</tbody></table></div>{% endblock %}

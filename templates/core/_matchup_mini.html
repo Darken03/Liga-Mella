@@ -1,0 +1,8 @@
+<div class="side-game">
+  <div class="side-line">
+    <div class="side-t">{% if j.local.logo %}<img src="{{ j.local.logo.url }}" width="38" height="38" style="border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.85)">{% else %}<span class="mini-dot" style="--mc:{{ j.local.color }}">{{ j.local.sigla|slice:":1" }}</span>{% endif %}<strong>{{ j.local.nombre }}</strong><small>⚾ {{ j.local.abridor.nombre|default:"Por anunciar" }}</small></div>
+    <div class="side-vs-mini"><span>VS</span></div>
+    <div class="side-t">{% if j.visita.logo %}<img src="{{ j.visita.logo.url }}" width="38" height="38" style="border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.85)">{% else %}<span class="mini-dot" style="--mc:{{ j.visita.color }}">{{ j.visita.sigla|slice:":1" }}</span>{% endif %}<strong>{{ j.visita.nombre }}</strong><small>⚾ {{ j.visita.abridor.nombre|default:"Por anunciar" }}</small></div>
+  </div>
+  <div class="side-foot"><small>{{ j.fecha|date:"d M · H:i" }} • {{ j.estadio }}</small> {% if j.estado == 'envivo' %}<span class="badge badge-live">{{ j.carreras_local }}-{{ j.carreras_visita }}</span>{% endif %}</div>
+</div>
