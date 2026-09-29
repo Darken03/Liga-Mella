@@ -65,11 +65,22 @@ class Noticia(models.Model):
             return f'https://www.facebook.com/plugins/video.php?href={quote(url, safe="")}&show_text=false'
         return None
     def save(self, *args, **kwargs):
-        from .imagenes import procesar_imagen_modelo
+        from .imagenes import procesar_imagen_modelo, fotos_previas, borrar_si_reemplazada
+        previas = fotos_previas(self, 'imagen', 'imagen2')
         procesar_imagen_modelo(self, 'imagen', 'imagen2')
         super().save(*args, **kwargs)
+        borrar_si_reemplazada(self, previas)
     def __str__(self): return self.titulo
     class Meta: ordering = ['-fecha']
+
+
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=Noticia)
+def _borrar_imgs_noticia(sender, instance, **kw):
+    from .imagenes import borrar_archivos
+    borrar_archivos(instance, 'imagen', 'imagen2')
 
 
 class Regla(models.Model):

@@ -25,9 +25,11 @@ class Equipo(models.Model):
             y = 50
         return f'{x}% {y}%'
     def save(self, *args, **kwargs):
-        from core.imagenes import procesar_imagen_modelo
+        from core.imagenes import procesar_imagen_modelo, fotos_previas, borrar_si_reemplazada
+        previas = fotos_previas(self, 'logo', 'banner')
         procesar_imagen_modelo(self, 'logo', 'banner')
         super().save(*args, **kwargs)
+        borrar_si_reemplazada(self, previas)
     def __str__(self): return self.nombre
     @property
     def abridor(self):
@@ -57,9 +59,11 @@ class Jugador(models.Model):
     estatura = models.CharField(max_length=10, blank=True)
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='ficha_jugador')
     def save(self, *args, **kwargs):
-        from core.imagenes import procesar_imagen_modelo
+        from core.imagenes import procesar_imagen_modelo, fotos_previas, borrar_si_reemplazada
+        previas = fotos_previas(self, 'foto', 'portada')
         procesar_imagen_modelo(self, 'foto', 'portada')
         super().save(*args, **kwargs)
+        borrar_si_reemplazada(self, previas)
     @property
     def nombre_completo(self):
         return f"{self.nombre} {self.apellido}".strip()
@@ -88,3 +92,19 @@ def aceptar_solicitud(s):
     j.equipo = s.equipo; j.save()
     SolicitudTraslado.objects.filter(usuario=u, estado='pendiente').exclude(pk=s.pk).update(estado='rechazada')
     return j
+
+
+# Al eliminar un equipo o jugador, sus imágenes se borran del disco
+# (también cubre borrados en cascada). Ahorra espacio en media/.
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=Equipo)
+def _borrar_imgs_equipo(sender, instance, **kw):
+    from core.imagenes import borrar_archivos
+    borrar_archivos(instance, 'logo', 'banner')
+
+@receiver(post_delete, sender=Jugador)
+def _borrar_imgs_jugador(sender, instance, **kw):
+    from core.imagenes import borrar_archivos
+    borrar_archivos(instance, 'foto', 'portada')

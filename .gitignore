@@ -9,6 +9,9 @@ venv/
 db.sqlite3*
 staticfiles/
 media/
+media.zip
+media.z01
+media.z02
 
 # Entorno / secretos (nunca subir claves ni cuentas)
 .env

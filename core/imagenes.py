@@ -82,6 +82,44 @@ def convertir_a_webp(archivo, calidad=CALIDAD_WEBP, max_lado=MAX_LADO):
             pass
 
 
+def fotos_previas(instancia, *campos):
+    """Nombres guardados en BD antes de guardar (para detectar reemplazos)."""
+    if not getattr(instancia, 'pk', None):
+        return {}
+    try:
+        fila = type(instancia).objects.filter(pk=instancia.pk).values(*campos).first()
+    except Exception:
+        return {}
+    return dict(fila or {})
+
+
+def borrar_si_reemplazada(instancia, previas):
+    """Borra del storage los archivos viejos que fueron reemplazados.
+
+    Llamar DESPUÉS de super().save(): así el nombre final (con el sufijo
+    que Django agrega si el nombre se repetía) ya está definido y no queda
+    ningún huérfano. Ahorra espacio en disco.
+    """
+    for campo, viejo in (previas or {}).items():
+        try:
+            f = getattr(instancia, campo, None)
+            nuevo = getattr(f, 'name', None) if f else None
+            if viejo and nuevo and viejo != nuevo and f.storage.exists(viejo):
+                f.storage.delete(viejo)
+        except Exception:
+            pass
+
+
+def borrar_archivos(instancia, *campos):
+    """Borra del storage los archivos indicados (al eliminar el objeto)."""
+    for campo in campos:
+        try:
+            f = getattr(instancia, campo, None)
+            nombre = getattr(f, 'name', None) if f else None
+            if nombre and f.storage.exists(nombre):
+                f.storage.delete(nombre)
+        except Exception:
+            pass
 def procesar_imagen_modelo(instancia, *campos, calidad=CALIDAD_WEBP, max_lado=MAX_LADO):
     """Convierte los campos imagen indicados de un modelo a WebP in-place.
 
