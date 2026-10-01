@@ -224,6 +224,9 @@ def fichajes(request):
 @login_required
 def solicitar(request):
     eq = mi_equipo(request)
+    if eq is not None and not eq.abierto:
+        messages.error(request, f'{eq.nombre} está cerrado: no puedes invitar jugadores mientras esté cerrado.')
+        return redirect('cap_fichajes')
     if request.method == 'POST':
         u = get_object_or_404(User, pk=request.POST['usuario'])
         if hasattr(u, 'ficha_jugador') and u.ficha_jugador and u.ficha_jugador.equipo_id == (eq.id if eq else None):
@@ -255,7 +258,9 @@ def fichaje_aprobar(request, pk):
     eq = mi_equipo(request)
     s = get_object_or_404(SolicitudTraslado, pk=pk, equipo=eq, estado='pendiente')
     if request.method == 'POST':
-        aceptar_solicitud(s)
+        if not aceptar_solicitud(s):
+            messages.error(request, f'{eq.nombre} está cerrado: no se pueden aceptar jugadores ahora.')
+            return redirect('cap_fichajes')
         try:
             from notificaciones.models import crear
             crear(s.usuario, 'fichaje_aceptado', f"¡Fuiste aceptado en {eq.nombre}!",
@@ -290,6 +295,24 @@ def fichaje_cancelar(request, pk):
     if request.method == 'POST':
         s.delete()
         messages.info(request, 'Solicitud cancelada.')
+    return redirect('cap_fichajes')
+
+
+@login_required
+def cambiar_estado(request):
+    """El capitán abre o cierra su propio equipo a nuevos jugadores."""
+    eq = mi_equipo(request)
+    if not eq:
+        messages.error(request, 'No tienes equipo asignado.')
+        return redirect('cap_dash')
+    if request.method == 'POST':
+        eq.abierto = not eq.abierto
+        eq.save(update_fields=['abierto'])
+        if eq.abierto:
+            messages.success(request, f'{eq.nombre} está ABIERTO: acepta nuevos jugadores.')
+        else:
+            messages.warning(request, f'{eq.nombre} está CERRADO: nadie puede entrar por ahora.')
+        return redirect('cap_fichajes')
     return redirect('cap_fichajes')
 
 

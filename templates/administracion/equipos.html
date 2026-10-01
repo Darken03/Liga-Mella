@@ -1,12 +1,13 @@
 {% extends 'base_admin.html' %}{% block title %}Equipos | Admin{% endblock %}{% block content %}
-<div class="page-head"><h3 class="oswald">Equipos ({{ equipos|length }})</h3><a class="btn btn-mella btn-add" href="{% url 'adm_equipo_nuevo' %}"><i class="bi bi-plus-lg"></i>Añadir equipo</a></div>
-<div class="table-responsive"><table class="tbl"><thead><tr><th>Logo</th><th>Equipo</th><th>Banner</th><th>Capitán</th><th>W-L</th><th>Jug.</th><th class="text-end">Acciones</th></tr></thead><tbody>
+<div class="page-head"><h3 class="oswald">Equipos ({{ equipos|length }})</h3><div class="d-flex gap-2"><form method="post" action="{% url 'adm_equipos_cerrar_todos' %}" class="m-0">{% csrf_token %}<button class="btn btn-ghost" title="Cierra todos los equipos a nuevos jugadores">🔒 Cerrar todos</button></form><form method="post" action="{% url 'adm_equipos_abrir_todos' %}" class="m-0">{% csrf_token %}<button class="btn btn-ghost" title="Abre todos los equipos a nuevos jugadores">🔓 Abrir todos</button></form><a class="btn btn-mella btn-add" href="{% url 'adm_equipo_nuevo' %}"><i class="bi bi-plus-lg"></i>Añadir equipo</a></div></div>
+<div class="table-responsive"><table class="tbl"><thead><tr><th>Logo</th><th>Equipo</th><th>Banner</th><th>Capitán</th><th>W-L</th><th>Jug.</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
 {% for e in equipos %}<tr>
 <td>{% if e.logo %}<img src="{{ e.logo.url }}" width="44" height="44" style="border-radius:50%;object-fit:cover;border:2px solid var(--mella-gold)">{% else %}<span class="avatar" style="background:{{ e.color }}">{{ e.sigla|slice:":1" }}</span>{% endif %}</td>
 <td><strong>{{ e.nombre }}</strong><br><span class="badge" style="background:{{ e.color }}">{{ e.sigla }}</span></td>
 <td>{% if e.banner %}<img src="{{ e.banner.url }}" height="34" width="90" style="border-radius:6px;object-fit:cover;object-position:{{ e.banner_position }}">{% else %}<small class="text-muted">—</small>{% endif %}</td>
 <td><small>{{ e.capitan.username|default:"—" }}</small></td>
 <td>{{ e.victorias }}-{{ e.derrotas }}</td><td>{{ e.jugadores.count }}</td>
-<td class="actions"><a class="act view" title="Ver" href="{% url 'adm_equipo_detalle' e.id %}"><i class="bi bi-eye"></i></a> <a class="act edit" title="Editar" href="{% url 'adm_equipo_editar' e.id %}"><i class="bi bi-pencil"></i></a> <a class="act del" title="Eliminar" href="{% url 'adm_equipo_eliminar' e.id %}"><i class="bi bi-trash"></i></a></td>
-</tr>{% empty %}<tr><td colspan="7" class="text-muted">Sin equipos.</td></tr>{% endfor %}
+<td>{% if e.abierto %}<span class="badge bg-success">Abierto</span>{% else %}<span class="badge bg-secondary">🔒 Cerrado</span>{% endif %}</td>
+<td class="actions"><form method="post" action="{% url 'adm_equipo_toggle' e.id %}" class="d-inline m-0">{% csrf_token %}<button class="act edit" title="{% if e.abierto %}Cerrar equipo{% else %}Abrir equipo{% endif %}">{% if e.abierto %}🔒{% else %}🔓{% endif %}</button></form> <a class="act view" title="Ver" href="{% url 'adm_equipo_detalle' e.id %}"><i class="bi bi-eye"></i></a> <a class="act edit" title="Editar" href="{% url 'adm_equipo_editar' e.id %}"><i class="bi bi-pencil"></i></a> <a class="act del" title="Eliminar" href="{% url 'adm_equipo_eliminar' e.id %}"><i class="bi bi-trash"></i></a></td>
+</tr>{% empty %}<tr><td colspan="8" class="text-muted">Sin equipos.</td></tr>{% endfor %}
 </tbody></table></div>{% endblock %}

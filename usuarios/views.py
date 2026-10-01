@@ -137,7 +137,10 @@ def solicitud_aceptar(request, pk):
         if not request.user.check_password(request.POST.get('password') or ''):
             messages.error(request, 'Contraseña incorrecta. No se aceptó la solicitud.')
             return redirect('sol_detalle', pk=pk)
-        aceptar_solicitud(s); messages.success(request, f'¡Bienvenido a {s.equipo.nombre}!')
+        if not aceptar_solicitud(s):
+            messages.error(request, f'{s.equipo.nombre} está cerrado: no acepta nuevos jugadores en este momento.')
+            return redirect('mis_solicitudes')
+        messages.success(request, f'¡Bienvenido a {s.equipo.nombre}!')
         if s.creado_por and s.creado_por_id != request.user.id:
             crear_notif(s.creado_por, 'fichaje_aceptado', f"@{request.user.username} aceptó unirse a {s.equipo.nombre}",
                         f"{request.user.username} aceptó tu invitación a {s.equipo.nombre}.", url='/capitan/fichajes/')

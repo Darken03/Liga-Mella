@@ -9,6 +9,7 @@ class Equipo(models.Model):
     director = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='equipos_dirigidos', verbose_name='Director (mismo poder que el capitán)')
     victorias = models.PositiveIntegerField(default=0)
     derrotas = models.PositiveIntegerField(default=0)
+    abierto = models.BooleanField(default=True, verbose_name='Acepta nuevos jugadores')
     logo = models.ImageField(upload_to='equipos/', blank=True, null=True)
     banner = models.ImageField(upload_to='equipos/banners/', blank=True, null=True)
     banner_x = models.PositiveSmallIntegerField(default=50, verbose_name='Encuadre horizontal %')
@@ -85,7 +86,18 @@ class SolicitudTraslado(models.Model):
 
 
 def aceptar_solicitud(s):
-    """El jugador acepta unirse al equipo: crea/actualiza su ficha."""
+    """El jugador acepta unirse al equipo: crea/actualiza su ficha.
+
+    Devuelve False (sin guardar nada) si el equipo está cerrado.
+    """
+    equipo = s.equipo
+    # Refresca por si la instancia viene desactualizada
+    try:
+        equipo.refresh_from_db(fields=['abierto'])
+    except Exception:
+        pass
+    if not equipo.abierto:
+        return False
     s.estado = 'aceptada'; s.save()
     u = s.usuario
     j, _ = Jugador.objects.get_or_create(usuario=u, defaults={'nombre': u.first_name or u.username, 'apellido': u.last_name, 'equipo': s.equipo})

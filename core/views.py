@@ -244,6 +244,9 @@ def equipo_detalle(request, pk):
         if not request.user.is_authenticated:
             messages.info(request, 'Inicia sesión para pedir unirte.')
             return redirect(f"/cuenta/login/?next=/equipos/{equipo.id}/")
+        if not equipo.abierto:
+            messages.error(request, f'{equipo.nombre} está cerrado: no acepta nuevos jugadores en este momento.')
+            return redirect('equipo_detalle', pk=equipo.id)
         # ya está en este equipo?
         if hasattr(request.user, 'ficha_jugador') and request.user.ficha_jugador and request.user.ficha_jugador.equipo_id == equipo.id:
             messages.info(request, 'Ya juegas en este equipo.')

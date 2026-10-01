@@ -24,7 +24,7 @@ class BootForm(forms.ModelForm):
 class EquipoForm(BootForm):
     class Meta:
         model = Equipo
-        fields = ['nombre', 'sigla', 'color', 'logo', 'banner', 'banner_x', 'banner_y', 'capitan', 'director']
+        fields = ['nombre', 'sigla', 'color', 'logo', 'banner', 'banner_x', 'banner_y', 'capitan', 'director', 'abierto']
         widgets = {'color': forms.TextInput(attrs={'type': 'color'}),
                    'banner_x': forms.NumberInput(attrs={'type': 'range', 'min': 0, 'max': 100, 'step': 1, 'class': 'form-range w-100'}),
                    'banner_y': forms.NumberInput(attrs={'type': 'range', 'min': 0, 'max': 100, 'step': 1, 'class': 'form-range w-100'})}

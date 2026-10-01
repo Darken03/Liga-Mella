@@ -53,6 +53,35 @@ def equipo_eliminar(request, pk):
         e.delete(); messages.success(request, 'Equipo eliminado.'); return redirect('adm_equipos')
     return render(request, 'administracion/confirmar_eliminar.html', {'titulo': 'Eliminar equipo', 'objeto': e.nombre, 'volver': 'adm_equipos'})
 
+@adm
+def equipo_toggle(request, pk):
+    """Abre o cierra un equipo a nuevos jugadores."""
+    e = get_object_or_404(Equipo, pk=pk)
+    if request.method == 'POST':
+        e.abierto = not e.abierto
+        e.save(update_fields=['abierto'])
+        if e.abierto:
+            messages.success(request, f'{e.nombre} está ABIERTO: acepta nuevos jugadores.')
+        else:
+            messages.warning(request, f'{e.nombre} está CERRADO: nadie puede entrar por ahora.')
+    return redirect('adm_equipos')
+
+@adm
+def equipos_cerrar_todos(request):
+    """Cierra todos los equipos de una vez (inicio de torneo)."""
+    if request.method == 'POST':
+        n = Equipo.objects.filter(abierto=True).update(abierto=False)
+        messages.warning(request, f'Se cerraron {n} equipos: nadie puede entrar por ahora.')
+    return redirect('adm_equipos')
+
+@adm
+def equipos_abrir_todos(request):
+    """Abre todos los equipos de una vez."""
+    if request.method == 'POST':
+        n = Equipo.objects.filter(abierto=False).update(abierto=True)
+        messages.success(request, f'Se abrieron {n} equipos: aceptan nuevos jugadores.')
+    return redirect('adm_equipos')
+
 # ---------- JUGADORES ----------
 @adm
 def jugadores(request):
@@ -628,7 +657,10 @@ def solicitudes(request):
 def solicitud_aprobar(request, pk):
     s = get_object_or_404(SolicitudTraslado, pk=pk)
     if request.method == 'POST':
-        aceptar_solicitud(s); messages.success(request, f'{s.usuario} ahora juega con {s.equipo}.')
+        if not aceptar_solicitud(s):
+            messages.error(request, f'{s.equipo.nombre} está cerrado: no se pueden aceptar jugadores ahora.')
+            return redirect('adm_solicitudes')
+        messages.success(request, f'{s.usuario} ahora juega con {s.equipo}.')
         try:
             from notificaciones.models import crear
             crear(s.usuario, 'fichaje_aceptado', f"¡Fuiste aceptado en {s.equipo.nombre}!",

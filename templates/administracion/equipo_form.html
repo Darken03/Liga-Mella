@@ -9,6 +9,7 @@
 <div class="col-md-6"><label class="frm-label" for="{{ form.color.id_for_label }}">Color</label>{{ form.color }}</div>
 <div class="col-md-6"><label class="frm-label" for="{{ form.capitan.id_for_label }}">Capitán (usuario)</label>{{ form.capitan }}</div>
 <div class="col-md-6"><label class="frm-label" for="{{ form.director.id_for_label }}">Director (usuario, mismo poder)</label>{{ form.director }}</div>
+<div class="col-md-6"><div class="form-check mt-4">{{ form.abierto }}<label class="form-check-label" for="{{ form.abierto.id_for_label }}">Acepta nuevos jugadores (abierto)</label>{{ form.abierto.errors }}<div><small class="text-muted">Si lo desmarcas, nadie puede entrar a este equipo.</small></div></div></div>
 </div>
 <div class="frm-sec"><i class="bi bi-image"></i> Imágenes</div>
 <div class="row g-3">

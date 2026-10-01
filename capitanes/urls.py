@@ -18,6 +18,7 @@ urlpatterns = [
     path('fichajes/<int:pk>/aprobar/', views.fichaje_aprobar, name='cap_fichaje_aprobar'),
     path('fichajes/<int:pk>/rechazar/', views.fichaje_rechazar, name='cap_fichaje_rechazar'),
     path('fichajes/<int:pk>/cancelar/', views.fichaje_cancelar, name='cap_fichaje_cancelar'),
+    path('cambiar-estado/', views.cambiar_estado, name='cap_cambiar_estado'),
     # Alineaciones
     path('alineaciones/', views.alineaciones, name='cap_alineaciones'),
     path('alineaciones/juego/<int:juego_id>/', views.alineacion_editar, name='cap_alin_editar'),
