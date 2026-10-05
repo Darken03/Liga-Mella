@@ -7,7 +7,7 @@ from torneos.models import Juego, Jugada, Entrada
 from equipos.models import Jugador
 from estadisticas.models import ActuacionBateo, ActuacionPitcheo
 
-RESULTADOS_OUT = {'out', 'k', 'sf'}
+RESULTADOS_OUT = {'out', 'k', 'sf', 'fc'}
 RESULTADOS_HIT = {'hit', 'doble', 'triple', 'hr'}
 
 
@@ -212,6 +212,7 @@ def _deltas(resultado, rbi, anoto):
     elif resultado == 'triple': d.update(ab=1, h=1, h3=1, es_hit=True)
     elif resultado == 'hr': d.update(ab=1, h=1, hr=1, r=1, es_hit=True)
     elif resultado == 'out': d.update(ab=1, es_out=True)
+    elif resultado == 'fc': d.update(ab=1, es_out=True)
     elif resultado == 'k': d.update(ab=1, kbat=1, kpit=1, es_out=True)
     elif resultado == 'bb': d.update(bb=1)
     elif resultado == 'hbp': d.update(hbp=1)
@@ -243,7 +244,7 @@ def api_turno(request, pk):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'CI/carreras inválidas'}, status=400)
     anoto = bool(data.get('anoto'))
-    if resultado not in ('hit', 'doble', 'triple', 'hr', 'out', 'k', 'bb', 'hbp', 'sf', 'error'):
+    if resultado not in ('hit', 'doble', 'triple', 'hr', 'out', 'k', 'bb', 'hbp', 'sf', 'error', 'fc'):
         return JsonResponse({'ok': False, 'error': 'Resultado inválido'}, status=400)
     if resultado == 'hr' and rbi < 1:
         rbi = 1

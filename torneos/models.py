@@ -157,7 +157,7 @@ def finalizar_juego(juego):
 
 
 class Jugada(models.Model):
-    RESULTADOS = [('hit','Hit sencillo'),('doble','Doble (2B)'),('triple','Triple (3B)'),('hr','Home Run'),('out','Out'),('k','Ponche (K)'),('bb','Base por bola'),('hbp','Golpeado'),('sf','Sacrificio'),('error','Error'),('otro','Otro')]
+    RESULTADOS = [('hit','Hit sencillo'),('doble','Doble (2B)'),('triple','Triple (3B)'),('hr','Home Run'),('out','Out'),('k','Ponche (K)'),('bb','Base por bola'),('hbp','Golpeado'),('sf','Sacrificio'),('error','Error'),('fc',"Fielder's Choice (FC)"),('otro','Otro')]
     TIPOS = [('hit','Hit'),('out','Out'),('carrera','Carrera'),('bb','Base por bola'),('hr','Home Run'),('error','Error'),('otro','Otro')]
     juego = models.ForeignKey(Juego, on_delete=models.CASCADE, related_name='jugadas')
     inning = models.CharField(max_length=20, default='1')

@@ -135,3 +135,48 @@ class CambiosAnotadorTest(TestCase):
         from capitanes.models import AlineacionDetalle as AD
         det = AD.objects.get(alineacion__juego=juego, alineacion__equipo=vis, orden_bateo=3)
         self.assertEqual(det.jugador_id, sale.id)
+
+
+class TurnoFCTest(TestCase):
+    """Fielder's Choice: el bateador llega pero hay out al corredor.
+
+    AB+1 sin hit, outs+1, pitcher suma 1 out a su IP, y el deshacer lo revierte.
+    """
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='anot_fc', password='x')
+        self.c = Client()
+        self.c.force_login(self.user)
+
+    def test_fc_registra_ab_sin_hit_y_un_out(self):
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        r = self.c.post(f"/anotador/juego/{juego.id}/api/turno/",
+                        json.dumps({"resultado": "fc", "rbi": 0, "carreras": 0}),
+                        content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content[:500])
+        d = r.json()
+        self.assertTrue(d.get("ok"), d)
+        juego.refresh_from_db()
+        self.assertEqual(juego.outs, 1)
+        jug = juego.jugadas.order_by('-id').first()
+        self.assertEqual(jug.resultado, 'fc')
+        self.assertEqual(jug.d_ab, 1)
+        self.assertEqual(jug.d_h, 0)
+        # el pitcher que defendía (local) sumó el out a su IP
+        from estadisticas.models import ActuacionPitcheo
+        pl = ActuacionPitcheo.objects.filter(jugador=jug.pitcher, torneo=juego.torneo).first()
+        self.assertIsNotNone(pl)
+        self.assertEqual(pl.ip_outs, 1)
+
+    def test_fc_deshacer_revierte_out(self):
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        self.c.post(f"/anotador/juego/{juego.id}/api/turno/",
+                    json.dumps({"resultado": "fc", "rbi": 0, "carreras": 0}),
+                    content_type="application/json")
+        r = self.c.post(f"/anotador/juego/{juego.id}/api/deshacer/",
+                        json.dumps({}), content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content[:500])
+        self.assertTrue(r.json().get("ok"), r.json())
+        juego.refresh_from_db()
+        self.assertEqual(juego.outs, 0)
+        self.assertFalse(juego.jugadas.exists())
