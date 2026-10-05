@@ -1,4 +1,5 @@
 {% extends 'base_capitan.html' %}{% block content %}
+{% if es_admin and not equipo %}<div class="alert alert-warning">Eres admin sin equipo seleccionado. <a href="{% url 'cap_seleccionar' %}">Elige qué equipo administrar →</a></div>{% endif %}
 <div class="dash-head"><h3 class="oswald mb-0">★ {% if equipo %}{{ equipo.nombre }}{% else %}Sin equipo{% endif %}</h3><small>Panel del capitán • {{ n_jug }} jugadores • {{ pend_fich }} fichajes pendientes</small></div>
 {% if equipo %}
 <div class="row g-3 mb-3">

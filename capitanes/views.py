@@ -9,7 +9,33 @@ from usuarios.models import User
 from .models import Alineacion, AlineacionDetalle, PlantillaAlineacion, PlantillaDetalle, AlineacionTitular, TitularDetalle, ALIN_POSICIONES, POS_DEFENSIVAS, TITULAR_POSICIONES
 
 
+EQUIPO_ADMIN_SESSION_KEY = 'equipo_admin_id'
+
+
+def es_admin_user(u):
+    return u.is_authenticated and (getattr(u, 'rol', '') == 'admin' or u.is_superuser)
+
+
+def equipo_admin_activo(request):
+    """Equipo que el admin eligió administrar en esta sesión (o None)."""
+    if not es_admin_user(request.user):
+        return None
+    try:
+        eid = int(request.session.get(EQUIPO_ADMIN_SESSION_KEY) or 0)
+    except (TypeError, ValueError):
+        return None
+    if not eid:
+        return None
+    return Equipo.objects.filter(pk=eid).first()
+
+
 def mi_equipo(request):
+    if es_admin_user(request.user):
+        sel = equipo_admin_activo(request)
+        if sel is not None:
+            return sel
+        # admin sin selección: no adivinar equipo, pide elegir
+        return None
     eq = request.user.equipos_capitaneados.first()
     if eq is None:
         eq = request.user.equipos_dirigidos.first()
@@ -38,6 +64,57 @@ def dashboard(request):
         'equipo': eq, 'juegos': prox, 'enviadas': enviadas,
         'pend_fich': pend_fich, 'n_jug': n_jug,
     })
+
+
+@login_required
+def seleccionar_equipo(request):
+    """Interfaz intermedia del admin: elige qué equipo administrar.
+
+    GET = tarjetas de equipos. POST con equipo_id = fija en sesión.
+    POST con equipo_id vacío = limpia la selección.
+    """
+    if not es_admin_user(request.user):
+        messages.error(request, 'Solo el administrador puede elegir equipo.')
+        return redirect('cap_dash')
+    if request.method == 'POST':
+        raw = (request.POST.get('equipo_id') or '').strip()
+        if not raw:
+            request.session.pop(EQUIPO_ADMIN_SESSION_KEY, None)
+            messages.info(request, 'Dejaste de administrar equipos.')
+            return redirect('cap_seleccionar')
+        try:
+            eid = int(raw)
+        except (TypeError, ValueError):
+            messages.error(request, 'Equipo inválido.')
+            return redirect('cap_seleccionar')
+        eq = Equipo.objects.filter(pk=eid).first()
+        if not eq:
+            request.session.pop(EQUIPO_ADMIN_SESSION_KEY, None)
+            messages.error(request, 'Ese equipo ya no existe.')
+            return redirect('cap_seleccionar')
+        request.session[EQUIPO_ADMIN_SESSION_KEY] = eq.id
+        messages.success(request, f'Administrando a {eq.nombre} como capitán.')
+        return redirect('cap_dash')
+    q = (request.GET.get('q') or '').strip()
+    equipos = Equipo.objects.all().order_by('nombre')
+    if q:
+        equipos = equipos.filter(nombre__icontains=q)
+    return render(request, 'capitanes/seleccionar.html', {
+        'equipos': equipos, 'q': q,
+        'actual': equipo_admin_activo(request),
+    })
+
+
+@login_required
+def fijar_equipo(request, pk):
+    """Atajo GET desde las tarjetas: fija el equipo y entra al panel."""
+    if not es_admin_user(request.user):
+        messages.error(request, 'Solo el administrador puede elegir equipo.')
+        return redirect('cap_dash')
+    eq = get_object_or_404(Equipo, pk=pk)
+    request.session[EQUIPO_ADMIN_SESSION_KEY] = eq.id
+    messages.success(request, f'Administrando a {eq.nombre} como capitán.')
+    return redirect('cap_dash')
 
 
 @login_required

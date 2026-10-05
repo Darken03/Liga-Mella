@@ -3,6 +3,8 @@ from . import views
 
 urlpatterns = [
     path('', views.dashboard, name='cap_dash'),
+    path('seleccionar/', views.seleccionar_equipo, name='cap_seleccionar'),
+    path('seleccionar/<int:pk>/', views.fijar_equipo, name='cap_fijar'),
     path('mis-estadisticas/', views.mis_stats, name='cap_mis_stats'),
     path('mi-equipo/', views.perfil_equipo, name='cap_perfil'),
     # Jugadores

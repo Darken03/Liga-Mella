@@ -1,0 +1,6 @@
+{% extends 'base_capitan.html' %}{% block content %}
+<div class="dash-head"><h3 class="oswald mb-0">🛠 Administrar equipo</h3><small>Elige qué equipo quieres capitanear en este momento. Tendrás poder total de capitán sobre él.</small></div>
+{% if equipo_admin %}<div class="alert alert-warning">Actualmente administras a <strong>{{ equipo_admin.nombre }}</strong>. <a href="{% url 'cap_dash' %}">Ir al panel →</a></div>{% endif %}
+<form method="get" class="d-flex gap-2 mb-3"><input name="q" value="{{ q }}" class="form-control" placeholder="Buscar equipo…"><button class="btn btn-navy" type="submit">Buscar</button></form>
+<div class="row g-3">{% for e in equipos %}<div class="col-12 col-md-6 col-lg-4"><div class="card card-mella p-3 h-100"><h5 class="oswald mb-1">{{ e.nombre }}</h5><small class="text-muted">{{ e.sigla }} • {{ e.jugadores.count }} jugadores</small><div class="d-flex gap-2 mt-2"><a class="btn btn-mella btn-sm" href="{% url 'cap_fijar' e.id %}">Administrar →</a><a class="btn btn-ghost btn-sm" href="/admin-liga/equipos/{{ e.id }}/">Ver en admin</a></div></div></div>{% empty %}<p class="text-muted">Sin equipos.</p>{% endfor %}</div>
+{% endblock %}
