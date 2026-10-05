@@ -67,6 +67,7 @@
 <div class="card card-mella p-3 mt-3"><h6 class="oswald">Guardar alineación</h6>
 <form method="post" id="alinForm">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
 <div class="mb-2"><label class="frm-label">Notas</label><input type="text" name="notas" class="form-control" value="{{ alin.notas }}" maxlength="200" placeholder="Ej: titular vs Toros"></div>
+<div class="form-check mb-2"><input type="checkbox" name="pitcher_batea" value="on" class="form-check-input" id="ckPbatea" {% if alin.pitcher_batea %}checked{% endif %}><label class="form-check-label" for="ckPbatea">El pitcher batea</label><br><small class="text-muted">Apágalo si tu pitcher solo lanza: seguirá marcado en P pero no le tocará turno.</small></div>
 <div id="hiddenRows"></div>
 <button class="btn btn-gold w-100" id="btnGuardar">Guardar (<span id="countSave">0</span>) →</button>
 </form></div>

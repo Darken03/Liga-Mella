@@ -454,6 +454,7 @@ def alineacion_editar(request, juego_id):
                         n += 1
                 dest.creada_por = request.user
                 dest.notas = (alin.notas or '')[:200]
+                dest.pitcher_batea = alin.pitcher_batea
                 dest.save()
             nombres = ', '.join(
                 '%s vs %s %s' % (p.local, p.visita, p.fecha.strftime('%H:%M'))
@@ -521,12 +522,17 @@ def alineacion_editar(request, juego_id):
             if len(set(ords_int)) != len(ords_int):
                 messages.error(request, 'Hay turnos al bate repetidos.')
                 return redirect('cap_alin_editar', juego_id=juego.id)
+            pitcher_batea = bool(request.POST.get('pitcher_batea'))
+            if pitcher_batea and 'P' not in poss:
+                messages.error(request, 'Si el pitcher batea, marca quién lanza (P) o desactiva la opción.')
+                return redirect('cap_alin_editar', juego_id=juego.id)
             alin.detalles.all().delete()
             for jid, pos, ordn in zip(jugs, poss, ords_int):
                 jug = get_object_or_404(Jugador, pk=jid, equipo=eq)
                 AlineacionDetalle.objects.create(alineacion=alin, jugador=jug, posicion=pos, orden_bateo=ordn)
             alin.creada_por = request.user
             alin.notas = request.POST.get('notas', '')[:200]
+            alin.pitcher_batea = pitcher_batea
             alin.save()
             messages.success(request, f'Alineación guardada: {len(jugs)} jugadores.')
             return redirect('cap_alin_editar', juego_id=juego.id)

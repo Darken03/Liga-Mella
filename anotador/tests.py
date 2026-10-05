@@ -241,3 +241,75 @@ class TurnoDPTest(TestCase):
         self.assertTrue(d.get("cambio_inning"), d)
         juego.refresh_from_db()
         self.assertEqual(juego.outs, 0)
+
+
+class PitcherBateaTest(TestCase):
+    """El equipo elige por juego si su pitcher batea o solo lanza."""
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='anot_pb', password='x')
+        self.c = Client()
+        self.c.force_login(self.user)
+
+    def _sin_bateo(self, juego, vis):
+        from capitanes.models import Alineacion
+        alin = Alineacion.objects.get(juego=juego, equipo=vis)
+        alin.pitcher_batea = False
+        alin.save()
+        return alin
+
+    def test_lineup_excluye_P_si_no_batea(self):
+        from anotador.views import _lineup, _ensure_pitcher
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        pitcher = jvis[0]  # P, orden 1
+        self._sin_bateo(juego, vis)
+        lin = _lineup(juego, vis)
+        self.assertEqual(len(lin), 8)
+        self.assertNotIn(pitcher.id, [d.jugador_id for d in lin])
+        # pero sigue siendo el pitcher que defiende
+        self.assertEqual(_ensure_pitcher(juego, vis).id, pitcher.id)
+
+    def test_lineup_incluye_P_por_defecto(self):
+        from anotador.views import _lineup
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        lin = _lineup(juego, vis)
+        self.assertEqual(len(lin), 9)
+        self.assertIn(jvis[0].id, [d.jugador_id for d in lin])
+
+    def test_turno_salta_al_pitcher_que_no_batea(self):
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        self._sin_bateo(juego, vis)
+        # alta: batea visita; idx 0 cae en el ex-orden 2 (jvis[1])
+        r = self.c.post(f"/anotador/juego/{juego.id}/api/turno/",
+                        json.dumps({"resultado": "out", "rbi": 0, "carreras": 0}),
+                        content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content[:500])
+        self.assertTrue(r.json().get("ok"), r.json())
+        juego.refresh_from_db()
+        self.assertEqual(juego.idx_visita, 1)
+        jug = juego.jugadas.order_by('-id').first()
+        self.assertEqual(jug.bateador_id, jvis[1].id)
+
+    def test_editor_exige_P_si_pitcher_batea(self):
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        cap = get_user_model().objects.create_user(username='cap_pb', password='x', rol='capitan')
+        loc.capitan = cap
+        loc.save()
+        cc = Client()
+        cc.force_login(cap)
+        url = f"/capitan/alineaciones/juego/{juego.id}/"
+        base = {'jugador': [str(jloc[1].id), str(jloc[2].id)],
+                'posicion': ['C', '1B'], 'orden': ['1', '2'], 'notas': ''}
+        # flag activo sin P -> error y no toca nada (siguen los 9 iniciales)
+        r = cc.post(url, dict(base, pitcher_batea='on'))
+        self.assertEqual(r.status_code, 302)
+        from capitanes.models import Alineacion
+        alin = Alineacion.objects.get(juego=juego, equipo=loc)
+        self.assertEqual(alin.detalles.count(), 9)
+        self.assertTrue(alin.pitcher_batea)
+        # mismo lineup con flag apagado -> guarda y persiste
+        r = cc.post(url, dict(base))
+        self.assertEqual(r.status_code, 302)
+        alin.refresh_from_db()
+        self.assertFalse(alin.pitcher_batea)
+        self.assertEqual(alin.detalles.count(), 2)

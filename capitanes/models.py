@@ -10,6 +10,7 @@ class Alineacion(models.Model):
     juego = models.ForeignKey(Juego, on_delete=models.CASCADE, related_name='alineaciones')
     creada_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     notas = models.CharField(max_length=200, blank=True)
+    pitcher_batea = models.BooleanField(default=True, verbose_name='El pitcher batea')
     creada = models.DateTimeField(auto_now_add=True)
     actualizada = models.DateTimeField(auto_now=True)
 

@@ -19,7 +19,10 @@ def _lineup(juego, equipo):
         from capitanes.models import Alineacion
         alin = Alineacion.objects.filter(juego=juego, equipo=equipo).prefetch_related('detalles__jugador').first()
         if alin and alin.detalles.exists():
-            return list(alin.orden_bateo())
+            dets = list(alin.orden_bateo())
+            if not getattr(alin, 'pitcher_batea', True):
+                dets = [d for d in dets if d.posicion != 'P']
+            return dets
     except Exception:
         pass
     # fallback: roster
@@ -136,6 +139,9 @@ def _estado(juego):
                    for c in cambios_qs.select_related('sale', 'entra').order_by('-id')[:6]]
     else:
         cambios = []
+    def _pb(eq):
+        a = _alineacion_de(juego, eq)
+        return True if a is None else bool(getattr(a, 'pitcher_batea', True))
     return {
         'juego': {'id': juego.id, 'estado': juego.estado, 'cl': juego.carreras_local, 'cv': juego.carreras_visita,
                   'inning_num': juego.inning_num, 'mitad': juego.mitad, 'inning_txt': juego.inning_actual,
@@ -146,6 +152,7 @@ def _estado(juego):
                   'torneo': juego.torneo.nombre if juego.torneo_id else ''},
         'entradas': entradas, 'tot_hl': tot_hl, 'tot_hv': tot_hv,
         'lineup_local': ser_lin(lin_l, juego.idx_local), 'lineup_visita': ser_lin(lin_v, juego.idx_visita),
+        'pitcher_batea_local': _pb(juego.local), 'pitcher_batea_visita': _pb(juego.visita),
         'bateador_actual': bateador_actual,
         'pitcher': {'id': pitcher.id, 'nombre': pitcher.nombre_completo, 'equipo': pdef.nombre} if pitcher else None,
         'roster_local': ros_l, 'roster_visita': ros_v,

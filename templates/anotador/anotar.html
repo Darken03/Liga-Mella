@@ -144,8 +144,8 @@ function render(st){
   document.getElementById('boxHead').innerHTML=h;
   document.getElementById('boxVis').innerHTML='<td class="team">'+j.visita.sigla+'</td>'+st.entradas.map(function(e){return '<td class="'+(e.n===j.inning_num&&j.mitad==='alta'?'cur':'')+'">'+e.cv+'</td>'}).join('')+'<td><strong>'+j.cv+'</strong></td><td>'+st.tot_hv+'</td>';
   document.getElementById('boxLoc').innerHTML='<td class="team">'+j.local.sigla+'</td>'+st.entradas.map(function(e){return '<td class="'+(e.n===j.inning_num&&j.mitad==='baja'?'cur':'')+'">'+e.cl+'</td>'}).join('')+'<td><strong>'+j.cl+'</strong></td><td>'+st.tot_hl+'</td>';
-  document.getElementById('tVis').textContent='Lineup visita • '+j.visita.nombre+(j.batea==='visita'?' • BATEANDO':' • EN ESPERA');
-  document.getElementById('tLoc').textContent='Lineup local • '+j.local.nombre+(j.batea==='local'?' • BATEANDO':' • EN ESPERA');
+  document.getElementById('tVis').textContent='Lineup visita • '+j.visita.nombre+(j.batea==='visita'?' • BATEANDO':' • EN ESPERA')+(st.pitcher_batea_visita===false?' • P NO BATEA':'');
+  document.getElementById('tLoc').textContent='Lineup local • '+j.local.nombre+(j.batea==='local'?' • BATEANDO':' • EN ESPERA')+(st.pitcher_batea_local===false?' • P NO BATEA':'');
   function row(p, batea){
     var mark = p.actual ? '<span class="bat-now" title="Le toca batear">🏏</span>' : '<span class="ord-next ord-now" style="font-size:.8rem">'+p.orden+'</span>';
     var espera = (!p.actual && !batea) ? ' <span class="badge bg-secondary">en espera</span>' : '';
