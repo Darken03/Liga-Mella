@@ -180,3 +180,64 @@ class TurnoFCTest(TestCase):
         juego.refresh_from_db()
         self.assertEqual(juego.outs, 0)
         self.assertFalse(juego.jugadas.exists())
+
+
+class TurnoDPTest(TestCase):
+    """Doble play: el bateador causa dos outs.
+
+    AB+1 sin hit, outs+2, pitcher suma 2 outs a su IP, y el deshacer lo revierte.
+    """
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='anot_dp', password='x')
+        self.c = Client()
+        self.c.force_login(self.user)
+
+    def test_dp_registra_ab_sin_hit_y_dos_outs(self):
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        r = self.c.post(f"/anotador/juego/{juego.id}/api/turno/",
+                        json.dumps({"resultado": "dp", "rbi": 0, "carreras": 0}),
+                        content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content[:500])
+        d = r.json()
+        self.assertTrue(d.get("ok"), d)
+        juego.refresh_from_db()
+        self.assertEqual(juego.outs, 2)
+        jug = juego.jugadas.order_by('-id').first()
+        self.assertEqual(jug.resultado, 'dp')
+        self.assertEqual(jug.d_ab, 1)
+        self.assertEqual(jug.d_h, 0)
+        from estadisticas.models import ActuacionPitcheo
+        pl = ActuacionPitcheo.objects.filter(jugador=jug.pitcher, torneo=juego.torneo).first()
+        self.assertIsNotNone(pl)
+        self.assertEqual(pl.ip_outs, 2)
+
+    def test_dp_deshacer_revierte_dos_outs(self):
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        self.c.post(f"/anotador/juego/{juego.id}/api/turno/",
+                    json.dumps({"resultado": "dp", "rbi": 0, "carreras": 0}),
+                    content_type="application/json")
+        r = self.c.post(f"/anotador/juego/{juego.id}/api/deshacer/",
+                        json.dumps({}), content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content[:500])
+        self.assertTrue(r.json().get("ok"), r.json())
+        juego.refresh_from_db()
+        self.assertEqual(juego.outs, 0)
+        self.assertFalse(juego.jugadas.exists())
+        from estadisticas.models import ActuacionPitcheo
+        self.assertFalse(ActuacionPitcheo.objects.filter(torneo=juego.torneo, ip_outs__gt=0).exists())
+
+    def test_dp_con_un_out_cambia_de_inning(self):
+        juego, loc, vis, jloc, jvis = _mk_juego()
+        self.c.post(f"/anotador/juego/{juego.id}/api/turno/",
+                    json.dumps({"resultado": "out", "rbi": 0, "carreras": 0}),
+                    content_type="application/json")
+        r = self.c.post(f"/anotador/juego/{juego.id}/api/turno/",
+                        json.dumps({"resultado": "dp", "rbi": 0, "carreras": 0}),
+                        content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content[:500])
+        d = r.json()
+        self.assertTrue(d.get("ok"), d)
+        self.assertTrue(d.get("cambio_inning"), d)
+        juego.refresh_from_db()
+        self.assertEqual(juego.outs, 0)

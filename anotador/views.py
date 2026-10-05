@@ -7,7 +7,9 @@ from torneos.models import Juego, Jugada, Entrada
 from equipos.models import Jugador
 from estadisticas.models import ActuacionBateo, ActuacionPitcheo
 
-RESULTADOS_OUT = {'out', 'k', 'sf', 'fc'}
+RESULTADOS_OUT = {'out', 'k', 'sf', 'fc', 'dp'}
+# outs que registra cada resultado (el doble play causa dos)
+RESULTADOS_OUTS_N = {'out': 1, 'k': 1, 'sf': 1, 'fc': 1, 'dp': 2}
 RESULTADOS_HIT = {'hit', 'doble', 'triple', 'hr'}
 
 
@@ -212,6 +214,7 @@ def _deltas(resultado, rbi, anoto):
     elif resultado == 'triple': d.update(ab=1, h=1, h3=1, es_hit=True)
     elif resultado == 'hr': d.update(ab=1, h=1, hr=1, r=1, es_hit=True)
     elif resultado == 'out': d.update(ab=1, es_out=True)
+    elif resultado == 'dp': d.update(ab=1, es_out=True)
     elif resultado == 'fc': d.update(ab=1, es_out=True)
     elif resultado == 'k': d.update(ab=1, kbat=1, kpit=1, es_out=True)
     elif resultado == 'bb': d.update(bb=1)
@@ -244,7 +247,7 @@ def api_turno(request, pk):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'CI/carreras inválidas'}, status=400)
     anoto = bool(data.get('anoto'))
-    if resultado not in ('hit', 'doble', 'triple', 'hr', 'out', 'k', 'bb', 'hbp', 'sf', 'error', 'fc'):
+    if resultado not in ('hit', 'doble', 'triple', 'hr', 'out', 'k', 'bb', 'hbp', 'sf', 'error', 'fc', 'dp'):
         return JsonResponse({'ok': False, 'error': 'Resultado inválido'}, status=400)
     if resultado == 'hr' and rbi < 1:
         rbi = 1
@@ -287,7 +290,7 @@ def api_turno(request, pk):
         if resultado == 'bb' or resultado == 'hbp': pl.bb += 1
         if dlt['es_hit']: pl.h += 1
         if carreras: pl.r += carreras; pl.er += carreras
-        if dlt['es_out']: pl.ip_outs += 1
+        if dlt['es_out']: pl.ip_outs += RESULTADOS_OUTS_N.get(resultado, 1)
         pl.save()
     # 3) marcador + entrada
     ent = _get_entrada(juego, juego.inning_num)
@@ -303,7 +306,7 @@ def api_turno(request, pk):
     ent.save()
     # 4) conteo / outs / inning
     if dlt['es_out']:
-        juego.outs += 1
+        juego.outs += RESULTADOS_OUTS_N.get(resultado, 1)
     juego.bolas = 0; juego.strikes = 0
     cambio = False
     if juego.outs >= 3:
@@ -673,10 +676,10 @@ def api_deshacer(request, pk):
     # revierte pitcher
     if jug.pitcher and jug.d_kpit:
         pl = ActuacionPitcheo.objects.filter(jugador=jug.pitcher, torneo=juego.torneo).first()
-        if pl: pl.k = max(0, pl.k - jug.d_kpit); pl.ip_outs = max(0, pl.ip_outs - (1 if jug.resultado in RESULTADOS_OUT else 0)); pl.save()
+        if pl: pl.k = max(0, pl.k - jug.d_kpit); pl.ip_outs = max(0, pl.ip_outs - RESULTADOS_OUTS_N.get(jug.resultado, 0)); pl.save()
     elif jug.pitcher and jug.resultado in RESULTADOS_OUT:
         pl = ActuacionPitcheo.objects.filter(jugador=jug.pitcher, torneo=juego.torneo).first()
-        if pl: pl.ip_outs = max(0, pl.ip_outs - 1); pl.save()
+        if pl: pl.ip_outs = max(0, pl.ip_outs - RESULTADOS_OUTS_N.get(jug.resultado, 1)); pl.save()
     if jug.pitcher and jug.resultado in ('bb', 'hbp'):
         pl = ActuacionPitcheo.objects.filter(jugador=jug.pitcher, torneo=juego.torneo).first()
         if pl: pl.bb = max(0, pl.bb - 1); pl.save()

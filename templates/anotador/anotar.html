@@ -65,6 +65,7 @@
 <button class="btn btn-gold res-btn" data-res="hr">💥 HR</button>
 <button class="btn btn-mella res-btn" data-res="out">OUT</button>
 <button class="btn btn-mella res-btn" data-res="fc">FC</button>
+<button class="btn btn-dark res-btn" data-res="dp">DP ⚾⚾</button>
 <button class="btn btn-dark res-btn" data-res="k">PONCHE K</button>
 <button class="btn btn-ghost res-btn" data-res="bb">BB</button>
 <button class="btn btn-ghost res-btn" data-res="hbp">GOLPE</button>
@@ -182,7 +183,7 @@ document.querySelectorAll('[data-ctl]').forEach(function(b){b.addEventListener('
     render(d.state);
   });
 });});
-function setRes(r){SEL_RES=r;document.querySelectorAll('.res-btn').forEach(function(b){b.classList.toggle('sel',b.dataset.res===r);});if(r==='hr'){document.getElementById('fRbi').value=1;document.getElementById('fC').value=1;document.getElementById('fAnoto').checked=true;}if(r==='out'||r==='k'||r==='fc'){document.getElementById('fRbi').value=0;document.getElementById('fC').value=0;}}
+function setRes(r){SEL_RES=r;document.querySelectorAll('.res-btn').forEach(function(b){b.classList.toggle('sel',b.dataset.res===r);});if(r==='hr'){document.getElementById('fRbi').value=1;document.getElementById('fC').value=1;document.getElementById('fAnoto').checked=true;}if(r==='out'||r==='k'||r==='fc'||r==='dp'){document.getElementById('fRbi').value=0;document.getElementById('fC').value=0;}}
 document.querySelectorAll('.res-btn').forEach(function(b){b.addEventListener('click',function(){setRes(b.dataset.res);});});
 setRes('hit');
 function step(id,d){var el=document.getElementById(id);el.value=Math.max(0,Math.min(6,(parseInt(el.value||0)+d)));}
