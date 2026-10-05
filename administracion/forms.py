@@ -49,7 +49,10 @@ class TorneoForm(BootForm):
 class JuegoForm(BootForm):
     class Meta:
         model = Juego
-        fields = ['torneo', 'local', 'visita', 'fecha', 'estadio', 'estado', 'fase', 'anotador']
+        # BLINDAJE: 'estado' fuera del form. El estado solo cambia por
+        # finalizar (anotador) o reabrir (admin). Así no se puede reabrir
+        # a mano sin restar la tabla y provocar doble conteo.
+        fields = ['torneo', 'local', 'visita', 'fecha', 'estadio', 'fase', 'anotador']
         widgets = {'fecha': forms.DateTimeInput(attrs={'type': 'datetime-local'})}
 
 class NoticiaForm(BootForm):

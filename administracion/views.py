@@ -443,15 +443,58 @@ def juego_nuevo(request):
 @adm
 def juego_editar(request, pk):
     j = get_object_or_404(Juego, pk=pk)
+    if j.estado == 'final':
+        messages.warning(request, 'Juego final: no se edita directo. Reábrelo primero para corregir y finalizar de nuevo.')
+        return redirect('adm_juego_detalle', pk=pk)
     f = JuegoForm(request.POST or None, instance=j)
     if request.method == 'POST' and f.is_valid():
         f.save(); messages.success(request, 'Juego actualizado.'); return redirect('adm_juegos')
     return render(request, 'administracion/juego_form.html', {'form': f, 'titulo': f'Editar juego {j}'})
 
 @adm
+def juego_reabrir(request, pk):
+    """Resta el resultado de la tabla y reabre a En vivo para corregir."""
+    from torneos.models import revertir_juego
+    j = get_object_or_404(Juego, pk=pk)
+    if request.method != 'POST':
+        return redirect('adm_juego_detalle', pk=pk)
+    if j.estado != 'final':
+        messages.info(request, 'El juego no está final: nada que revertir.')
+        return redirect('adm_juego_detalle', pk=pk)
+    if revertir_juego(j, reabrir=True):
+        messages.warning(request, f'{j} reabierto a En vivo y restado de la tabla. Corrige y finaliza de nuevo.')
+    else:
+        messages.info(request, 'No había resultado aplicado: solo se reabrió.')
+        j.estado = 'envivo'; j.save(update_fields=['estado'])
+    return redirect('adm_juego_detalle', pk=pk)
+
+@adm
+def torneo_recalcular(request, pk):
+    """Reconstruye la tabla del torneo desde los juegos Final (repara inflados)."""
+    from torneos.models import recalcular_torneo
+    t = get_object_or_404(Torneo, pk=pk)
+    if request.method != 'POST':
+        return redirect('adm_torneo_detalle', pk=pk)
+    n_reg, n_tot = recalcular_torneo(t)
+    messages.success(request, f'Tabla recalculada: {n_reg} juegos regulares, {n_tot} finales en histórico.')
+    return redirect('adm_torneo_detalle', pk=pk)
+
+@adm
 def juego_eliminar(request, pk):
     j = get_object_or_404(Juego, pk=pk)
     if request.method == 'POST':
+        # Blindaje: si era final aplicado, resta antes de borrar para no dejar fantasma
+        try:
+            if j.estado == 'final' and getattr(j, 'resultado_aplicado', False):
+                from torneos.models import revertir_juego
+                revertir_juego(j, reabrir=False)
+                # revertir ya guardó; recarga para borrar el objeto fresco
+                j = Juego.objects.filter(pk=pk).first()
+                if j is None:
+                    messages.success(request, 'Juego eliminado y restado de la tabla.')
+                    return redirect('adm_juegos')
+        except Exception:
+            pass
         j.delete(); messages.success(request, 'Juego eliminado.'); return redirect('adm_juegos')
     return render(request, 'administracion/confirmar_eliminar.html', {'titulo': 'Eliminar juego', 'objeto': str(j), 'volver': 'adm_juegos'})
 

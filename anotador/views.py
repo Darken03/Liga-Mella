@@ -359,10 +359,12 @@ def api_control(request, pk):
     if acc == 'iniciar':
         juego.estado = 'envivo'; juego.save(update_fields=['estado'])
     elif acc == 'finalizar':
+        # Blindaje: finalizar_juego es idempotente (resultado_aplicado).
+        # Se puede llamar aunque estado ya sea final: no duplica.
         if juego.estado != 'final':
             juego.estado = 'final'; juego.save(update_fields=['estado'])
-            from torneos.models import finalizar_juego
-            finalizar_juego(juego)
+        from torneos.models import finalizar_juego
+        finalizar_juego(juego)
     elif acc == 'bola':
         juego.bolas += 1
         auto_bb = False

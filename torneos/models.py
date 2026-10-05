@@ -36,6 +36,7 @@ class Juego(models.Model):
     pitcher_local = models.ForeignKey('equipos.Jugador', null=True, blank=True, on_delete=models.SET_NULL, related_name='juegos_pitcheados_local')
     pitcher_visita = models.ForeignKey('equipos.Jugador', null=True, blank=True, on_delete=models.SET_NULL, related_name='juegos_pitcheados_visita')
     anotador = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    resultado_aplicado = models.BooleanField(default=False, verbose_name='Resultado aplicado a la tabla')
     def __str__(self): return f"{self.local} vs {self.visita} ({self.estado})"
     class Meta: ordering = ['-fecha']
     def sync_inning_txt(self):
@@ -93,7 +94,16 @@ def finalizar_juego(juego):
 
     Los juegos de playoff (semifinal/final) NO tocan la tabla de posiciones
     de la fase regular; solo suman al historial del equipo y notifican.
+
+    BLINDAJE: idempotente via resultado_aplicado. Si ya fue aplicado, no suma.
     """
+    try:
+        if juego.pk:
+            juego.refresh_from_db(fields=['resultado_aplicado'])
+    except Exception:
+        pass
+    if getattr(juego, 'resultado_aplicado', False):
+        return False
     es_playoff = juego.fase != 'regular'
     rank_antes = _ranking(juego.torneo)
     if juego.carreras_local > juego.carreras_visita:
@@ -105,15 +115,30 @@ def finalizar_juego(juego):
     for eq, rol in ((juego.local, 'local'), (juego.visita, 'visita')):
         ca = juego.carreras_local if rol == 'local' else juego.carreras_visita
         cp = juego.carreras_visita if rol == 'local' else juego.carreras_local
-        if g and eq == g: eq.victorias += 1
-        elif g: eq.derrotas += 1
-        eq.save()
+        try:
+            eq.refresh_from_db(fields=['victorias', 'derrotas'])
+        except Exception:
+            pass
+        if g and eq.id == g.id:
+            eq.victorias += 1
+        elif g:
+            eq.derrotas += 1
+        eq.save(update_fields=['victorias', 'derrotas'])
         if es_playoff:
             continue
         lin, _ = EquipoTorneo.objects.get_or_create(equipo=eq, torneo=juego.torneo)
-        if g and eq == g: lin.ganados += 1
-        elif g: lin.perdidos += 1
-        lin.ca += ca; lin.cp += cp; lin.save()
+        if g and eq.id == g.id:
+            lin.ganados += 1
+        elif g:
+            lin.perdidos += 1
+        lin.ca += ca
+        lin.cp += cp
+        lin.save()
+    try:
+        juego.resultado_aplicado = True
+        juego.save(update_fields=['resultado_aplicado'])
+    except Exception:
+        pass
     # --- notificaciones de resultado + posición ---
     try:
         from notificaciones.models import crear_para_usuarios
@@ -154,6 +179,120 @@ def finalizar_juego(juego):
                     crear_para_usuarios(users, 'posicion', f"Bajaste a la #{rd}", f"{eq.nombre} pasó de #{ra} a #{rd} en {juego.torneo.nombre}.", url='/posiciones/')
     except Exception:
         pass
+    return True
+
+
+def revertir_juego(juego, reabrir=True):
+    """Inversa de finalizar_juego: resta lo sumado y reabre a En vivo.
+
+    Devuelve True si revirtió, False si no había nada aplicado.
+    Nunca deja negativos.
+    """
+    try:
+        if juego.pk:
+            juego.refresh_from_db()
+    except Exception:
+        pass
+    if not getattr(juego, 'resultado_aplicado', False):
+        if juego.estado != 'final':
+            return False
+    es_playoff = juego.fase != 'regular'
+    if juego.carreras_local > juego.carreras_visita:
+        g = juego.local
+    elif juego.carreras_visita > juego.carreras_local:
+        g = juego.visita
+    else:
+        g = None
+    from equipos.models import Equipo as _Eq
+    for eq_id, rol in ((juego.local_id, 'local'), (juego.visita_id, 'visita')):
+        ca = juego.carreras_local if rol == 'local' else juego.carreras_visita
+        cp = juego.carreras_visita if rol == 'local' else juego.carreras_local
+        try:
+            eq = _Eq.objects.get(pk=eq_id)
+        except _Eq.DoesNotExist:
+            continue
+        if g is not None:
+            if eq_id == g.id:
+                eq.victorias = max(0, eq.victorias - 1)
+            else:
+                eq.derrotas = max(0, eq.derrotas - 1)
+            eq.save(update_fields=['victorias', 'derrotas'])
+        if es_playoff:
+            continue
+        try:
+            lin = EquipoTorneo.objects.get(equipo_id=eq_id, torneo_id=juego.torneo_id)
+        except EquipoTorneo.DoesNotExist:
+            continue
+        if g is not None:
+            if eq_id == g.id:
+                lin.ganados = max(0, lin.ganados - 1)
+            else:
+                lin.perdidos = max(0, lin.perdidos - 1)
+        lin.ca = max(0, lin.ca - ca)
+        lin.cp = max(0, lin.cp - cp)
+        lin.save()
+    juego.resultado_aplicado = False
+    if reabrir:
+        juego.estado = 'envivo'
+    juego.save(update_fields=['resultado_aplicado', 'estado'])
+    return True
+
+
+def recalcular_torneo(torneo):
+    """Reconstruye la tabla desde los juegos Final.
+
+    Resetea EquipoTorneo del torneo (solo regular) y el histórico global
+    Equipo.victorias/derrotas (todas las fases/torneos). Marca flags.
+    Devuelve (n_regular, n_total).
+    """
+    from equipos.models import Equipo as _Eq
+    EquipoTorneo.objects.filter(torneo=torneo).update(ganados=0, perdidos=0, ca=0, cp=0)
+    _Eq.objects.all().update(victorias=0, derrotas=0)
+    n_regular = 0
+    regulares = Juego.objects.filter(torneo=torneo, estado='final', fase='regular').select_related('local', 'visita')
+    for j in regulares:
+        if j.carreras_local > j.carreras_visita:
+            gid = j.local_id
+        elif j.carreras_visita > j.carreras_local:
+            gid = j.visita_id
+        else:
+            gid = None
+        for eq_id, rol in ((j.local_id, 'local'), (j.visita_id, 'visita')):
+            ca = j.carreras_local if rol == 'local' else j.carreras_visita
+            cp = j.carreras_visita if rol == 'local' else j.carreras_local
+            lin, _ = EquipoTorneo.objects.get_or_create(equipo_id=eq_id, torneo=torneo)
+            if gid is not None:
+                if eq_id == gid:
+                    lin.ganados += 1
+                else:
+                    lin.perdidos += 1
+            lin.ca += ca
+            lin.cp += cp
+            lin.save()
+        n_regular += 1
+    n_total = 0
+    for j in Juego.objects.filter(estado='final').select_related('local', 'visita'):
+        if j.carreras_local > j.carreras_visita:
+            gid = j.local_id
+        elif j.carreras_visita > j.carreras_local:
+            gid = j.visita_id
+        else:
+            gid = None
+        if gid is not None:
+            try:
+                gw = _Eq.objects.get(pk=gid)
+                gw.victorias += 1
+                gw.save(update_fields=['victorias'])
+                perdedor = j.visita_id if gid == j.local_id else j.local_id
+                pl = _Eq.objects.get(pk=perdedor)
+                pl.derrotas += 1
+                pl.save(update_fields=['derrotas'])
+            except _Eq.DoesNotExist:
+                pass
+        n_total += 1
+    Juego.objects.filter(estado='final').update(resultado_aplicado=True)
+    Juego.objects.exclude(estado='final').update(resultado_aplicado=False)
+    return (n_regular, n_total)
 
 
 class Jugada(models.Model):
