@@ -56,6 +56,28 @@ def _get_entrada(juego, numero):
     return e
 
 
+def _alineacion_de(juego, equipo):
+    """Alineación con jugadores para cambios del anotador (no crea vacías)."""
+    from capitanes.models import Alineacion
+    return (Alineacion.objects
+            .filter(juego=juego, equipo=equipo)
+            .prefetch_related('detalles__jugador').first())
+
+
+def _sync_pitcher_equipo(juego, equipo):
+    """Si el lineup tiene un P, ese es el pitcher; si no, se deja el actual."""
+    alin = _alineacion_de(juego, equipo)
+    if not alin:
+        return
+    d = alin.detalles.filter(posicion='P').select_related('jugador').first()
+    if not d:
+        return
+    attr = 'pitcher_local' if equipo.id == juego.local_id else 'pitcher_visita'
+    if getattr(juego, attr + '_id') != d.jugador_id:
+        setattr(juego, attr, d.jugador)
+        juego.save(update_fields=[attr])
+
+
 def _resumen_juego(juego):
     """Stats por bateador en ESTE juego desde Jugadas detalladas."""
     from collections import defaultdict
@@ -101,6 +123,17 @@ def _estado(juego):
     pitcher = _ensure_pitcher(juego, pdef) if juego.estado != 'final' else getattr(juego, 'pitcher_local' if pdef.id == juego.local_id else 'pitcher_visita')
     ros_l = [{'id': j.id, 'nombre': j.nombre_completo, 'dorsal': j.dorsal} for j in juego.local.jugadores.order_by('dorsal')]
     ros_v = [{'id': j.id, 'nombre': j.nombre_completo, 'dorsal': j.dorsal} for j in juego.visita.jugadores.order_by('dorsal')]
+    ids_l = {d.jugador_id for d in lin_l}; ids_v = {d.jugador_id for d in lin_v}
+    def ser_banca(equipo, ids):
+        return [{'id': j.id, 'nombre': j.nombre_completo, 'dorsal': j.dorsal, 'pos_base': j.posicion}
+                for j in equipo.jugadores.order_by('dorsal') if j.id not in ids]
+    cambios_qs = getattr(juego, 'cambios', None)
+    if cambios_qs is not None:
+        cambios = [{'id': c.id, 'tipo': c.tipo,
+                    'txt': str(c), 'inn': f"{c.inning_num}RA {'ALTA' if c.mitad == 'alta' else 'BAJA'}"}
+                   for c in cambios_qs.select_related('sale', 'entra').order_by('-id')[:6]]
+    else:
+        cambios = []
     return {
         'juego': {'id': juego.id, 'estado': juego.estado, 'cl': juego.carreras_local, 'cv': juego.carreras_visita,
                   'inning_num': juego.inning_num, 'mitad': juego.mitad, 'inning_txt': juego.inning_actual,
@@ -114,6 +147,8 @@ def _estado(juego):
         'bateador_actual': bateador_actual,
         'pitcher': {'id': pitcher.id, 'nombre': pitcher.nombre_completo, 'equipo': pdef.nombre} if pitcher else None,
         'roster_local': ros_l, 'roster_visita': ros_v,
+        'banca_local': ser_banca(juego.local, ids_l), 'banca_visita': ser_banca(juego.visita, ids_v),
+        'cambios': cambios,
         'ultimas': [{'id': x.id, 'txt': x.descripcion, 'inn': x.inning} for x in juego.jugadas.order_by('-id')[:8]],
     }
 
@@ -371,15 +406,256 @@ def api_control(request, pk):
 
 @login_required
 @transaction.atomic
+def api_cambio(request, pk):
+    """Registra sustituciones y swaps defensivos en el lineup del juego.
+
+    Acciones:
+    - sustituir: {equipo_id, sale_id, entra_id, posicion?}
+      El que entra hereda el orden al bate del que sale. Si el que entra
+      ya estaba en el lineup, se intercambian los jugadores entre los dos
+      órdenes (las posiciones de cada orden se conservan, salvo `posicion`).
+    - swap_pos: {equipo_id, jugador_a_id, jugador_b_id? , posicion?}
+      Intercambia posiciones sin tocar el orden al bate, o asigna una
+      posición directa a un jugador.
+    """
+    import json
+    from capitanes.models import ALIN_POSICIONES
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+    try:
+        data = json.loads(request.body.decode() or '{}')
+    except Exception:
+        data = request.POST
+    juego = get_object_or_404(Juego.objects.select_related('local', 'visita', 'torneo'), pk=pk)
+    if juego.estado == 'final':
+        return JsonResponse({'ok': False, 'error': 'Juego finalizado'}, status=400)
+    from anotador.models import Sustitucion
+    acc = (data.get('accion') or '').strip()
+    POS_OK = {c for c, _ in ALIN_POSICIONES}
+
+    def _equipo(eid):
+        try:
+            eid = int(eid)
+        except (TypeError, ValueError):
+            return None
+        if eid == juego.local_id:
+            return juego.local
+        if eid == juego.visita_id:
+            return juego.visita
+        return None
+
+    def _snap(equipo):
+        s_idx = juego.idx_local if equipo.id == juego.local_id else juego.idx_visita
+        return (s_idx, juego.inning_num, juego.mitad, juego.outs,
+                juego.bolas, juego.strikes, juego.carreras_local, juego.carreras_visita)
+
+    def _jug_cambio(equipo, descripcion, s_idx, s_cl, s_cv,
+                    s_outs, s_bolas, s_strikes, s_inn, s_mit):
+        inn_txt = f"{s_inn}RA {'ALTA' if s_mit == 'alta' else 'BAJA'}"
+        return Jugada.objects.create(
+            juego=juego, inning=inn_txt, inning_num=s_inn, mitad=s_mit,
+            descripcion=descripcion[:200], tipo='cambio',
+            equipo_batea=equipo, resultado='otro', rbi=0, carreras=0,
+            s_outs=s_outs, s_bolas=s_bolas, s_strikes=s_strikes,
+            s_inning=s_inn, s_mitad=s_mit, s_idx=s_idx, s_cl=s_cl, s_cv=s_cv,
+        )
+
+    if acc == 'sustituir':
+        equipo = _equipo(data.get('equipo_id'))
+        if not equipo:
+            return JsonResponse({'ok': False, 'error': 'Equipo inválido'}, status=400)
+        try:
+            sale_id, entra_id = int(data.get('sale_id')), int(data.get('entra_id'))
+        except (TypeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'sale_id / entra_id inválidos'}, status=400)
+        if sale_id == entra_id:
+            return JsonResponse({'ok': False, 'error': 'Son el mismo jugador'}, status=400)
+        pos_new_raw = (data.get('posicion') or '').strip().upper()
+        if pos_new_raw and pos_new_raw not in POS_OK:
+            return JsonResponse({'ok': False, 'error': 'Posición inválida'}, status=400)
+        sale = Jugador.objects.filter(pk=sale_id, equipo=equipo).first()
+        entra = Jugador.objects.filter(pk=entra_id, equipo=equipo).first()
+        if not sale or not entra:
+            return JsonResponse({'ok': False, 'error': 'Los jugadores deben ser del mismo equipo'}, status=400)
+        alin = _alineacion_de(juego, equipo)
+        if not alin or not alin.detalles.exists():
+            return JsonResponse({'ok': False, 'error': 'Sin lineup: el capitán debe alinear.'}, status=400)
+        det_sale = alin.detalles.filter(jugador_id=sale_id).first()
+        if not det_sale:
+            return JsonResponse({'ok': False, 'error': f'{sale.nombre_completo} no está en el lineup.'}, status=400)
+        det_entra = alin.detalles.filter(jugador_id=entra_id).first()
+        s_idx, s_inn, s_mit, s_outs, s_bolas, s_strikes, s_cl, s_cv = _snap(equipo)
+        orden_sale = det_sale.orden_bateo
+        pos_sale_old = det_sale.posicion
+        if det_entra is None:
+            # caso banca: entra ocupa el orden del que sale
+            pos_nueva = pos_new_raw or pos_sale_old
+            det_sale.jugador = entra
+            det_sale.posicion = pos_nueva
+            det_sale.save()
+            desc = (f"🔄 Cambio {equipo.sigla}: sale {sale.nombre_completo} #{sale.dorsal} "
+                    f"entra {entra.nombre_completo} #{entra.dorsal} en {orden_sale}° ({pos_sale_old}→{pos_nueva})")
+            jug = _jug_cambio(equipo, desc, s_idx, s_cl, s_cv, s_outs, s_bolas, s_strikes, s_inn, s_mit)
+            Sustitucion.objects.create(juego=juego, equipo=equipo, jugada=jug, tipo='sustitucion',
+                                       sale=sale, entra=entra, orden_sale=orden_sale, orden_entra=None,
+                                       pos_sale_old=pos_sale_old, pos_sale_new=pos_nueva,
+                                       inning_num=s_inn, mitad=s_mit, s_idx=s_idx)
+        else:
+            # ambos en lineup: intercambian jugadores, cada orden conserva su posición
+            orden_entra = det_entra.orden_bateo
+            pos_entra_old = det_entra.posicion
+            pos_entra_new = pos_new_raw or pos_sale_old
+            # evita el unique (alineacion, jugador): borra y recrea cruzados
+            pos_s = pos_entra_new  # lo que tendrá el orden_sale
+            pos_e = pos_entra_old  # el orden_entra conserva su posición
+            det_sale.delete()
+            det_entra.delete()
+            alin.detalles.create(jugador=entra, posicion=pos_s, orden_bateo=orden_sale)
+            alin.detalles.create(jugador=sale, posicion=pos_e, orden_bateo=orden_entra)
+            desc = (f"🔄 Swap {equipo.sigla}: {sale.nombre_completo} ({orden_sale}°) x "
+                    f"{entra.nombre_completo} ({orden_entra}°)")
+            jug = _jug_cambio(equipo, desc, s_idx, s_cl, s_cv, s_outs, s_bolas, s_strikes, s_inn, s_mit)
+            Sustitucion.objects.create(juego=juego, equipo=equipo, jugada=jug, tipo='sustitucion',
+                                       sale=sale, entra=entra, orden_sale=orden_sale, orden_entra=orden_entra,
+                                       pos_sale_old=pos_sale_old, pos_sale_new=pos_s,
+                                       pos_entra_old=pos_entra_old, pos_entra_new=pos_e,
+                                       inning_num=s_inn, mitad=s_mit, s_idx=s_idx)
+        _sync_pitcher_equipo(juego, equipo)
+        return JsonResponse({'ok': True, 'state': _estado(juego)})
+
+    if acc == 'swap_pos':
+        equipo = _equipo(data.get('equipo_id'))
+        if not equipo:
+            return JsonResponse({'ok': False, 'error': 'Equipo inválido'}, status=400)
+        try:
+            a_id = int(data.get('jugador_a_id'))
+        except (TypeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'jugador_a inválido'}, status=400)
+        b_raw = data.get('jugador_b_id')
+        try:
+            b_id = int(b_raw) if b_raw else None
+        except (TypeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'jugador_b inválido'}, status=400)
+        pos_raw = (data.get('posicion') or '').strip().upper()
+        if pos_raw and pos_raw not in POS_OK:
+            return JsonResponse({'ok': False, 'error': 'Posición inválida'}, status=400)
+        alin = _alineacion_de(juego, equipo)
+        if not alin or not alin.detalles.exists():
+            return JsonResponse({'ok': False, 'error': 'Sin lineup: el capitán debe alinear.'}, status=400)
+        det_a = alin.detalles.select_related('jugador').filter(jugador_id=a_id).first()
+        if not det_a:
+            return JsonResponse({'ok': False, 'error': 'El jugador A no está en el lineup.'}, status=400)
+        s_idx, s_inn, s_mit, s_outs, s_bolas, s_strikes, s_cl, s_cv = _snap(equipo)
+        if b_id:
+            if b_id == a_id:
+                return JsonResponse({'ok': False, 'error': 'Son el mismo jugador'}, status=400)
+            det_b = alin.detalles.select_related('jugador').filter(jugador_id=b_id).first()
+            if not det_b:
+                return JsonResponse({'ok': False, 'error': 'El jugador B no está en el lineup.'}, status=400)
+            pa, pb = det_a.posicion, det_b.posicion
+            det_a.posicion, det_b.posicion = pb, pa
+            det_a.save(update_fields=['posicion'])
+            det_b.save(update_fields=['posicion'])
+            desc = (f"🔄 Swap defensivo {equipo.sigla}: {det_a.jugador.nombre_completo} ({pa}→{pb}) x "
+                    f"{det_b.jugador.nombre_completo} ({pb}→{pa})")
+            jug = _jug_cambio(equipo, desc, s_idx, s_cl, s_cv, s_outs, s_bolas, s_strikes, s_inn, s_mit)
+            Sustitucion.objects.create(juego=juego, equipo=equipo, jugada=jug, tipo='swap_pos',
+                                       sale=det_a.jugador, entra=det_b.jugador,
+                                       orden_sale=det_a.orden_bateo, orden_entra=det_b.orden_bateo,
+                                       pos_sale_old=pa, pos_sale_new=pb,
+                                       pos_entra_old=pb, pos_entra_new=pa,
+                                       inning_num=s_inn, mitad=s_mit, s_idx=s_idx)
+        elif pos_raw:
+            pa = det_a.posicion
+            if pa == pos_raw:
+                return JsonResponse({'ok': False, 'error': 'Ya juega ahí'}, status=400)
+            det_a.posicion = pos_raw
+            det_a.save(update_fields=['posicion'])
+            desc = (f"🔄 Cambio defensivo {equipo.sigla}: {det_a.jugador.nombre_completo} {pa}→{pos_raw} ({det_a.orden_bateo}°)")
+            jug = _jug_cambio(equipo, desc, s_idx, s_cl, s_cv, s_outs, s_bolas, s_strikes, s_inn, s_mit)
+            Sustitucion.objects.create(juego=juego, equipo=equipo, jugada=jug, tipo='swap_pos',
+                                       sale=det_a.jugador, entra=None,
+                                       orden_sale=det_a.orden_bateo, orden_entra=None,
+                                       pos_sale_old=pa, pos_sale_new=pos_raw,
+                                       inning_num=s_inn, mitad=s_mit, s_idx=s_idx)
+        else:
+            return JsonResponse({'ok': False, 'error': 'Indica jugador B o una posición'}, status=400)
+        _sync_pitcher_equipo(juego, equipo)
+        return JsonResponse({'ok': True, 'state': _estado(juego)})
+
+    return JsonResponse({'ok': False, 'error': 'Acción inválida'}, status=400)
+
+
+@login_required
+@transaction.atomic
 def api_deshacer(request, pk):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
     juego = get_object_or_404(Juego.objects.select_related('torneo'), pk=pk)
     if juego.estado == 'final':
         return JsonResponse({'ok': False, 'error': 'Juego finalizado, no se puede deshacer'}, status=400)
-    jug = juego.jugadas.filter(bateador__isnull=False).order_by('-id').first()
+    jug = juego.jugadas.order_by('-id').first()
     if not jug:
         return JsonResponse({'ok': False, 'error': 'Nada que deshacer'}, status=400)
+    # --- deshacer un cambio (sustitución / swap): revierte el lineup ---
+    if jug.tipo == 'cambio':
+        from anotador.models import Sustitucion
+        try:
+            sus = jug.sustitucion
+        except Sustitucion.DoesNotExist:
+            sus = None
+        if sus is not None:
+            alin = _alineacion_de(juego, sus.equipo)
+            if alin:
+                if sus.tipo == 'sustitucion' and sus.orden_entra is None:
+                    det = alin.detalles.filter(orden_bateo=sus.orden_sale).first()
+                    if det and sus.sale_id:
+                        det.jugador = sus.sale
+                        det.posicion = sus.pos_sale_old or det.posicion
+                        det.save()
+                elif sus.tipo == 'sustitucion' and sus.orden_entra is not None:
+                    ds = alin.detalles.filter(orden_bateo=sus.orden_sale).first()
+                    de = alin.detalles.filter(orden_bateo=sus.orden_entra).first()
+                    if ds and de and sus.sale_id and sus.entra_id:
+                        # revierte el swap borrando y recreando (evita unique)
+                        ps_old, pe_old = sus.pos_sale_old, sus.pos_entra_old
+                        ds.delete()
+                        de.delete()
+                        alin.detalles.create(jugador=sus.sale, posicion=ps_old or '1B', orden_bateo=sus.orden_sale)
+                        alin.detalles.create(jugador=sus.entra, posicion=pe_old or '1B', orden_bateo=sus.orden_entra)
+                elif sus.tipo == 'swap_pos':
+                    if sus.orden_entra is not None:
+                        ds = alin.detalles.filter(orden_bateo=sus.orden_sale).first()
+                        de = alin.detalles.filter(orden_bateo=sus.orden_entra).first()
+                        if ds:
+                            ds.posicion = sus.pos_sale_old or ds.posicion
+                            ds.save(update_fields=['posicion'])
+                        if de:
+                            de.posicion = sus.pos_entra_old or de.posicion
+                            de.save(update_fields=['posicion'])
+                    else:
+                        ds = alin.detalles.filter(orden_bateo=sus.orden_sale).first()
+                        if ds:
+                            ds.posicion = sus.pos_sale_old or ds.posicion
+                            ds.save(update_fields=['posicion'])
+                # restaura el índice del equipo cambiado y el pitcher
+                if sus.equipo_id == juego.local_id:
+                    juego.idx_local = sus.s_idx
+                elif sus.equipo_id == juego.visita_id:
+                    juego.idx_visita = sus.s_idx
+                juego.save(update_fields=['idx_local', 'idx_visita'])
+                _sync_pitcher_equipo(juego, sus.equipo)
+            txt = jug.descripcion
+            jug.delete()  # borra en cascada la Sustitucion
+            return JsonResponse({'ok': True, 'state': _estado(juego), 'deshecho': txt})
+        # cambio viejo sin registro: solo borra la jugada
+        txt = jug.descripcion
+        jug.delete()
+        return JsonResponse({'ok': True, 'state': _estado(juego), 'deshecho': txt})
+    if jug.bateador_id is None:
+        txt = jug.descripcion
+        jug.delete()
+        return JsonResponse({'ok': True, 'state': _estado(juego), 'deshecho': txt})
     # revierte stats bateo
     if jug.bateador:
         lin = ActuacionBateo.objects.filter(jugador=jug.bateador, torneo=juego.torneo).first()

@@ -83,6 +83,24 @@
 <div class="table-responsive"><table class="tbl"><thead><tr><th></th><th>#</th><th>Bateador</th><th>Pos</th><th>AB-H-HR-CI</th></tr></thead><tbody id="linLoc"></tbody></table></div></div></div>
 </div>
 
+<!-- CAMBIOS -->
+<div class="card card-mella p-3 mt-3"><h5 class="oswald">🔄 Cambios <small class="text-muted">— sustituye banca x jugador o cambia posiciones</small></h5>
+<div class="row g-2 align-items-end">
+<div class="col-6 col-md-2"><label class="frm-label">Equipo</label><select id="cbEq" class="form-select form-select-sm"><option value="visita">Visita</option><option value="local">Local</option></select></div>
+<div class="col-6 col-md-3"><label class="frm-label">Sale (en juego)</label><select id="cbSale" class="form-select form-select-sm"></select></div>
+<div class="col-6 col-md-3"><label class="frm-label">Entra (roster / en juego)</label><select id="cbEntra" class="form-select form-select-sm"></select></div>
+<div class="col-6 col-md-2"><label class="frm-label">Posición (opcional)</label><select id="cbPos" class="form-select form-select-sm"><option value="">Hereda</option><option>P</option><option>C</option><option>1B</option><option>2B</option><option>SS</option><option>3B</option><option>LF</option><option>LCF</option><option>RCF</option><option>RF</option><option>EH</option><option>BD</option><option>BA</option></select></div>
+<div class="col-12 col-md-2"><label class="frm-label">Banca</label><div><small class="text-muted" id="cbBanca">—</small></div></div>
+</div>
+<div class="d-flex flex-wrap gap-2 mt-2">
+<button class="btn btn-navy btn-sm" id="btnSust">Sustituir → hereda turno</button>
+<button class="btn btn-ghost btn-sm" id="btnSwap">↔ Swap posiciones A x B</button>
+<button class="btn btn-ghost btn-sm" id="btnPos">Fijar posición</button>
+</div>
+<small class="text-muted">Sustituir: el que entra ocupa el orden al bate del que sale. Si el que entra ya está en juego, se intercambian. El cambio queda en Últimas jugadas y se puede deshacer.</small>
+<div id="cbHist" class="mt-2"></div>
+</div>
+
 <!-- AJUSTES -->
 <div class="card card-mella p-3 mt-3"><h5 class="oswald">Ajustes <small class="text-muted">— correcciones e inning manual</small></h5>
 <div class="row g-2">
@@ -101,7 +119,8 @@
 (function(){
 var PK="{{ juego_obj.id }}";
 var U_EST="/anotador/juego/"+PK+"/api/estado/", U_TUR="/anotador/juego/"+PK+"/api/turno/",
-    U_CTL="/anotador/juego/"+PK+"/api/control/", U_DES="/anotador/juego/"+PK+"/api/deshacer/", U_PIT="/anotador/juego/"+PK+"/api/pitcher/";
+    U_CTL="/anotador/juego/"+PK+"/api/control/", U_DES="/anotador/juego/"+PK+"/api/deshacer/", U_PIT="/anotador/juego/"+PK+"/api/pitcher/",
+    U_CAM="/anotador/juego/"+PK+"/api/cambio/";
 function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
 function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(b||{})}).then(function(r){return r.json()});}
 var S=null, SEL_RES='hit';
@@ -137,7 +156,24 @@ function render(st){
   if(st.roster_visita) fillPit('pitV', st.roster_visita);
   if(st.roster_local) fillPit('pitL', st.roster_local);
   document.getElementById('feed').innerHTML=st.ultimas.map(function(x){return '<div><small>'+x.inn+' — '+x.txt+'</small></div>'}).join('')||'<small class="text-muted">Sin jugadas.</small>';
+  fillCambios();
+  if(st.cambios) document.getElementById('cbHist').innerHTML=st.cambios.map(function(x){return '<div><small>🔄 '+x.inn+' — '+x.txt+'</small></div>'}).join('')||'<small class="text-muted">Sin cambios.</small>';
 }
+function eqSel(){return document.getElementById('cbEq').value==='local'?'local':'visita';}
+function fillCambios(){
+  if(!S) return;
+  var eq=eqSel(), lin=eq==='local'?S.lineup_local:S.lineup_visita,
+      ros=eq==='local'?S.roster_local:S.roster_visita,
+      banca=eq==='local'?S.banca_local:S.banca_visita;
+  function keep(id, opts, fmt){var s=document.getElementById(id), cur=s.value;
+    s.innerHTML=opts.map(fmt).join(''); if(cur && opts.some(function(p){return String(p.id)===String(cur);})) s.value=cur;}
+  keep('cbSale', lin, function(p){return '<option value="'+p.id+'">'+p.orden+'° '+p.nombre+' #'+p.dorsal+' ('+p.pos+')</option>';});
+  keep('cbEntra', ros||[], function(p){
+    var enLin=lin.some(function(q){return q.id===p.id;});
+    return '<option value="'+p.id+'">'+p.nombre+' #'+p.dorsal+(enLin?' • EN JUEGO':' • banca')+'</option>';});
+  document.getElementById('cbBanca').textContent=(banca||[]).map(function(p){return '#'+p.dorsal+' '+p.nombre;}).join(', ')||'Sin banca';
+}
+document.getElementById('cbEq').addEventListener('change', fillCambios);
 function load(){fetch(U_EST).then(function(r){return r.json()}).then(render);}
 document.querySelectorAll('[data-ctl]').forEach(function(b){b.addEventListener('click',function(){
   post(U_CTL,{accion:b.dataset.ctl}).then(function(d){
@@ -161,6 +197,10 @@ document.getElementById('btnIniciar').addEventListener('click',function(){post(U
 document.getElementById('btnFinalizar').addEventListener('click',function(){if(!confirm('¿Finalizar juego? Actualiza tabla y notifica.'))return;post(U_CTL,{accion:'finalizar'}).then(function(d){if(!d.ok){alert(d.error);return;}render(d.state);alert('Juego finalizado');});});
 document.getElementById('setPitV').addEventListener('click',function(){var eq=S.juego.visita.id, jg=document.getElementById('pitV').value;post(U_PIT,{equipo_id:eq,jugador_id:jg}).then(function(d){render(d.state);});});
 document.getElementById('setPitL').addEventListener('click',function(){var eq=S.juego.local.id, jg=document.getElementById('pitL').value;post(U_PIT,{equipo_id:eq,jugador_id:jg}).then(function(d){render(d.state);});});
+function cbIds(){var eq=eqSel()==='local'?S.juego.local.id:S.juego.visita.id;return {equipo_id:eq, a:document.getElementById('cbSale').value, b:document.getElementById('cbEntra').value, pos:document.getElementById('cbPos').value};}
+document.getElementById('btnSust').addEventListener('click',function(){var v=cbIds();if(!v.a||!v.b){alert('Elige quién sale y quién entra');return;}if(!confirm('¿Sustituir? El que entra hereda el turno al bate.'))return;post(U_CAM,{accion:'sustituir',equipo_id:v.equipo_id,sale_id:v.a,entra_id:v.b,posicion:v.pos}).then(function(d){if(!d.ok){alert(d.error||'Error');return;}render(d.state);});});
+document.getElementById('btnSwap').addEventListener('click',function(){var v=cbIds();if(!v.a||!v.b){alert('Elige A y B en juego');return;}post(U_CAM,{accion:'swap_pos',equipo_id:v.equipo_id,jugador_a_id:v.a,jugador_b_id:v.b}).then(function(d){if(!d.ok){alert(d.error||'Error');return;}render(d.state);});});
+document.getElementById('btnPos').addEventListener('click',function(){var v=cbIds();if(!v.a||!v.pos){alert('Elige jugador y posición');return;}post(U_CAM,{accion:'swap_pos',equipo_id:v.equipo_id,jugador_a_id:v.a,posicion:v.pos}).then(function(d){if(!d.ok){alert(d.error||'Error');return;}render(d.state);});});
 load(); setInterval(load, 20000);
 })();
 </script>
