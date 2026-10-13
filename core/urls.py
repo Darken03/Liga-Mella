@@ -10,6 +10,7 @@ urlpatterns = [
     path('playoffs/', views.playoffs, name='playoffs'),
     path('reglas/', views.reglas, name='reglas'),
     path('estadisticas/', views.estadisticas, name='estadisticas'),
+    path('estadisticas/pdf/', views.estadisticas_pdf, name='estadisticas_pdf'),
     path('equipos/', views.equipos_list, name='equipos'),
     path('equipos/<int:pk>/', views.equipo_detalle, name='equipo_detalle'),
     path('jugadores/<int:pk>/', views.jugador_detalle, name='jugador_detalle'),

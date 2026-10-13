@@ -138,11 +138,12 @@ def playoffs(request):
     })
 
 def estadisticas(request):
-    from estadisticas.models import ActuacionBateo
+    from estadisticas.models import ActuacionBateo, ActuacionPitcheo
     from django.db.models import Sum, Count
     from equipos.models import Jugador
     ATTRS = ('ab', 'r', 'h', 'h2', 'h3', 'hr', 'rbi', 'bb', 'hbp', 'sf', 'k', 'avg', 'obp', 'slg', 'ops')
     torneos = Torneo.objects.all()
+    equipos = Equipo.objects.all().order_by('nombre')
     tid = request.GET.get('torneo')
     q = request.GET.get('q', '')
     orden = request.GET.get('orden', '-avg')
@@ -159,9 +160,43 @@ def estadisticas(request):
     tab = request.GET.get('tab', 'lideres')
     if tab not in ('lideres', 'fama'):
         tab = 'lideres'
+    # --- filtro por equipo (para reporte imprimible) ---
+    eid = request.GET.get('equipo', '')
+    equipo_sel = Equipo.objects.filter(pk=eid).first() if eid else None
     lineas = ActuacionBateo.objects.filter(torneo=t).select_related('jugador', 'jugador__equipo') if t else []
+    if equipo_sel:
+        lineas = lineas.filter(jugador__equipo_id=equipo_sel.id)
     if q: lineas = lineas.filter(jugador__nombre__icontains=q)
     lineas = sorted(lineas, key=lambda l: getattr(l, base_key), reverse=desc)
+    # --- pitcheo del equipo/torneo (para reporte completo) ---
+    if t and equipo_sel:
+        pitcheo = list(ActuacionPitcheo.objects.filter(
+            torneo=t, jugador__equipo_id=equipo_sel.id
+        ).select_related('jugador').order_by('-k', 'er'))
+    elif t:
+        pitcheo = list(ActuacionPitcheo.objects.filter(
+            torneo=t).select_related('jugador', 'jugador__equipo').order_by('-k')[:15])
+    else:
+        pitcheo = []
+    # --- totales del equipo en bateo ---
+    tot = {'ab': 0, 'r': 0, 'h': 0, 'h2': 0, 'h3': 0, 'hr': 0, 'rbi': 0,
+           'bb': 0, 'hbp': 0, 'sf': 0, 'k': 0}
+    for l in lineas:
+        for k in tot:
+            tot[k] += getattr(l, k, 0) or 0
+    ab = tot['ab']; h = tot['h']; bb = tot['bb']; hbp = tot['hbp']; sf = tot['sf']
+    h2 = tot['h2']; h3 = tot['h3']; hr = tot['hr']
+    tb = (h - h2 - h3 - hr) + 2 * h2 + 3 * h3 + 4 * hr
+    tot['avg'] = round(h / ab, 3) if ab else 0
+    den = ab + bb + hbp + sf
+    tot['obp'] = round((h + bb + hbp) / den, 3) if den else 0
+    tot['slg'] = round(tb / ab, 3) if ab else 0
+    tot['ops'] = round(tot['obp'] + tot['slg'], 3)
+    # --- línea de posiciones del equipo (W-L) ---
+    linea_eq = None
+    if t and equipo_sel:
+        from torneos.models import EquipoTorneo
+        linea_eq = EquipoTorneo.objects.filter(torneo=t, equipo=equipo_sel).select_related('equipo').first()
     # --- Salón de la fama: acumulado histórico por jugador (todas las temporadas) ---
     agg = (ActuacionBateo.objects.values('jugador').annotate(
         ab=Sum('ab'), r=Sum('r'), h=Sum('h'), h2=Sum('h2'), h3=Sum('h3'), hr=Sum('hr'),
@@ -187,11 +222,44 @@ def estadisticas(request):
                      'avg': avg, 'obp': obp, 'slg': slg, 'ops': ops})
     if q:
         fama = [f for f in fama if q.lower() in f['jugador'].nombre.lower()]
+    if equipo_sel:
+        fama = [f for f in fama if f['jugador'].equipo_id == equipo_sel.id]
     fama = sorted(fama, key=lambda f: f[h_key], reverse=desc_h)
     return render(request, 'core/estadisticas.html', {
         'torneo': t, 'torneos': torneos, 'lineas': lineas, 'q': q,
         'orden': orden, 'orden_h': orden_h, 'fama': fama, 'tab': tab,
+        'equipos': equipos, 'equipo_sel': equipo_sel,
+        'pitcheo': pitcheo, 'tot': tot, 'linea_eq': linea_eq,
     })
+
+
+def estadisticas_pdf(request):
+    """Descarga PDF profesional con las estadísticas del equipo seleccionado."""
+    from django.http import HttpResponse, Http404
+    eid = request.GET.get('equipo', '')
+    tid = request.GET.get('torneo', '')
+    if not eid:
+        raise Http404('Selecciona un equipo para generar el PDF.')
+    equipo = get_object_or_404(Equipo.objects.all(), pk=eid)
+    torneo = Torneo.objects.filter(pk=tid).first() if tid else (
+        Torneo.objects.filter(activo=True).first() or Torneo.objects.first())
+    if not torneo:
+        raise Http404('No hay torneo.')
+    from estadisticas.models import ActuacionBateo, ActuacionPitcheo
+    lineas = list(ActuacionBateo.objects.filter(
+        torneo=torneo, jugador__equipo_id=equipo.id
+    ).select_related('jugador', 'jugador__equipo').order_by('-hr', '-rbi'))
+    pitcheo = list(ActuacionPitcheo.objects.filter(
+        torneo=torneo, jugador__equipo_id=equipo.id
+    ).select_related('jugador').order_by('-k'))
+    from torneos.models import EquipoTorneo
+    linea_eq = EquipoTorneo.objects.filter(torneo=torneo, equipo=equipo).first()
+    from .pdf_equipo import generar_pdf_equipo
+    pdf = generar_pdf_equipo(equipo, torneo, lineas, pitcheo, linea_eq)
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    fname = f"estadisticas-{equipo.sigla or equipo.id}-{torneo.temporada}.pdf".replace(' ', '_')
+    resp['Content-Disposition'] = f'attachment; filename="{fname}"'
+    return resp
 
 def equipos_list(request):
     return render(request, 'core/equipos.html', {'equipos': Equipo.objects.all()})
