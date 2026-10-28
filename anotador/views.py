@@ -11,6 +11,8 @@ RESULTADOS_OUT = {'out', 'k', 'sf', 'fc', 'dp'}
 # outs que registra cada resultado (el doble play causa dos)
 RESULTADOS_OUTS_N = {'out': 1, 'k': 1, 'sf': 1, 'fc': 1, 'dp': 2}
 RESULTADOS_HIT = {'hit', 'doble', 'triple', 'hr'}
+# resultados admitidos en un turno al bate (modo completo y modo rápido)
+RESULTADOS_TURNO = ('hit', 'doble', 'triple', 'hr', 'out', 'k', 'bb', 'hbp', 'sf', 'error', 'fc', 'dp')
 
 
 def _lineup(juego, equipo):
@@ -86,11 +88,14 @@ def _sync_pitcher_equipo(juego, equipo):
 def _resumen_juego(juego):
     """Stats por bateador en ESTE juego desde Jugadas detalladas."""
     from collections import defaultdict
-    res = defaultdict(lambda: {'ab': 0, 'h': 0, 'hr': 0, 'rbi': 0, 'r': 0, 'bb': 0, 'k': 0, 'pa': []})
+    res = defaultdict(lambda: {'ab': 0, 'h': 0, 'h2': 0, 'h3': 0, 'hr': 0, 'rbi': 0, 'r': 0,
+                               'bb': 0, 'hbp': 0, 'sf': 0, 'k': 0, 'pa': []})
     for t in juego.jugadas.filter(bateador__isnull=False).order_by('id'):
         r = res[t.bateador_id]
         r['ab'] += t.d_ab; r['h'] += t.d_h; r['hr'] += t.d_hr
+        r['h2'] += t.d_h2; r['h3'] += t.d_h3
         r['rbi'] += t.d_rbi; r['r'] += t.d_r; r['bb'] += t.d_bb
+        r['hbp'] += t.d_hbp; r['sf'] += t.d_sf
         if t.resultado == 'k':
             r['k'] += 1
         r['pa'].append({'inn': t.inning_num, 'mitad': t.mitad, 'res': t.resultado, 'rbi': t.rbi})
@@ -283,12 +288,7 @@ def api_turno(request, pk):
     dlt = _deltas(resultado, rbi, anoto)
     pitcher = _ensure_pitcher(juego, juego.equipo_defiende)
     # 1) stats bateo
-    linea, _ = ActuacionBateo.objects.get_or_create(jugador=bateador, torneo=juego.torneo)
-    linea.ab += dlt['ab']; linea.h += dlt['h']; linea.h2 += dlt['h2']; linea.h3 += dlt['h3']
-    linea.hr += dlt['hr']; linea.r += dlt['r']; linea.rbi += dlt['rbi']
-    linea.bb += dlt['bb']; linea.hbp += dlt['hbp']; linea.sf += dlt['sf']; linea.k += dlt['kbat']
-    linea.save()
-    bateador.hr += dlt['hr']; bateador.rbi += dlt['rbi']; bateador.avg = linea.avg; bateador.save(update_fields=['hr', 'rbi', 'avg'])
+    _aplicar_bateo(juego, bateador, dlt)
     # 2) stats pitcher (K automático + IP)
     if pitcher and pitcher.equipo_id != eq_batea.id:
         pl, _ = ActuacionPitcheo.objects.get_or_create(jugador=pitcher, torneo=juego.torneo)
@@ -670,18 +670,7 @@ def api_deshacer(request, pk):
         jug.delete()
         return JsonResponse({'ok': True, 'state': _estado(juego), 'deshecho': txt})
     # revierte stats bateo
-    if jug.bateador:
-        lin = ActuacionBateo.objects.filter(jugador=jug.bateador, torneo=juego.torneo).first()
-        if lin:
-            lin.ab = max(0, lin.ab - jug.d_ab); lin.h = max(0, lin.h - jug.d_h)
-            lin.h2 = max(0, lin.h2 - jug.d_h2); lin.h3 = max(0, lin.h3 - jug.d_h3)
-            lin.hr = max(0, lin.hr - jug.d_hr); lin.r = max(0, lin.r - jug.d_r)
-            lin.rbi = max(0, lin.rbi - jug.d_rbi); lin.bb = max(0, lin.bb - jug.d_bb)
-            lin.hbp = max(0, lin.hbp - jug.d_hbp); lin.sf = max(0, lin.sf - jug.d_sf)
-            if hasattr(lin, 'k'): lin.k = max(0, lin.k - (1 if jug.resultado == 'k' else 0))
-            lin.save()
-            j = jug.bateador; j.hr = max(0, j.hr - jug.d_hr); j.rbi = max(0, j.rbi - jug.d_rbi); j.avg = lin.avg
-            j.save(update_fields=['hr', 'rbi', 'avg'])
+    _revertir_bateo(juego, jug)
     # revierte pitcher
     if jug.pitcher and jug.d_kpit:
         pl = ActuacionPitcheo.objects.filter(jugador=jug.pitcher, torneo=juego.torneo).first()
@@ -733,3 +722,219 @@ def api_pitcher(request, pk):
     else: juego.pitcher_visita = jug
     juego.save()
     return JsonResponse({'ok': True, 'state': _estado(juego)})
+
+
+# ================= Modo rápido: estadísticas sin alineación =================
+# Alternativa sin a la anotación completa: lista el roster completo de ambos
+# equipos y registra cualquier turno al bate en cualquier orden. NO toca
+# inning/outs/idx/entradas ni pitcheo; el marcador es manual (+/-).
+# Regla de uso: un juego se anota en un modo O el otro (los eventos se
+# acumulan en las mismas Jugadas / ActuacionBateo).
+
+def _aplicar_bateo(juego, bateador, dlt):
+    """Suma los deltas de bateo a la línea del torneo y a los campos rápidos del jugador."""
+    linea, _ = ActuacionBateo.objects.get_or_create(jugador=bateador, torneo=juego.torneo)
+    linea.ab += dlt['ab']; linea.h += dlt['h']; linea.h2 += dlt['h2']; linea.h3 += dlt['h3']
+    linea.hr += dlt['hr']; linea.r += dlt['r']; linea.rbi += dlt['rbi']
+    linea.bb += dlt['bb']; linea.hbp += dlt['hbp']; linea.sf += dlt['sf']; linea.k += dlt['kbat']
+    linea.save()
+    bateador.hr += dlt['hr']; bateador.rbi += dlt['rbi']; bateador.avg = linea.avg
+    bateador.save(update_fields=['hr', 'rbi', 'avg'])
+
+
+def _revertir_bateo(juego, jug):
+    """Inversa de _aplicar_bateo para una Jugada (nunca deja negativos)."""
+    if not jug.bateador_id:
+        return
+    lin = ActuacionBateo.objects.filter(jugador=jug.bateador, torneo=juego.torneo).first()
+    if lin:
+        lin.ab = max(0, lin.ab - jug.d_ab); lin.h = max(0, lin.h - jug.d_h)
+        lin.h2 = max(0, lin.h2 - jug.d_h2); lin.h3 = max(0, lin.h3 - jug.d_h3)
+        lin.hr = max(0, lin.hr - jug.d_hr); lin.r = max(0, lin.r - jug.d_r)
+        lin.rbi = max(0, lin.rbi - jug.d_rbi); lin.bb = max(0, lin.bb - jug.d_bb)
+        lin.hbp = max(0, lin.hbp - jug.d_hbp); lin.sf = max(0, lin.sf - jug.d_sf)
+        if hasattr(lin, 'k'): lin.k = max(0, lin.k - (1 if jug.resultado == 'k' else 0))
+        lin.save()
+        j = jug.bateador; j.hr = max(0, j.hr - jug.d_hr); j.rbi = max(0, j.rbi - jug.d_rbi); j.avg = lin.avg
+        j.save(update_fields=['hr', 'rbi', 'avg'])
+
+
+def _estado_rapido(juego):
+    """Estado del modo rápido: juego + roster completo con tallas desde Jugadas."""
+    juego.refresh_from_db()
+    resumen = _resumen_juego(juego)
+    zero = {'ab': 0, 'h': 0, 'h2': 0, 'h3': 0, 'hr': 0, 'rbi': 0, 'r': 0, 'bb': 0, 'k': 0}
+
+    def _eq(e):
+        return {'id': e.id, 'nombre': e.nombre, 'sigla': e.sigla, 'color': e.color}
+
+    def _roster(eq):
+        out = []
+        for j in eq.jugadores.order_by('dorsal'):
+            s = resumen.get(j.id, zero)
+            out.append({'id': j.id, 'nombre': j.nombre_completo, 'dorsal': j.dorsal, 'pos': j.posicion,
+                        'ab': s.get('ab', 0), 'h': s.get('h', 0), 'h2': s.get('h2', 0),
+                        'h3': s.get('h3', 0), 'hr': s.get('hr', 0), 'rbi': s.get('rbi', 0),
+                        'r': s.get('r', 0), 'bb': s.get('bb', 0), 'k': s.get('k', 0)})
+        return out
+
+    ultimas = [{'id': x.id, 'txt': x.descripcion,
+                'eq': 'local' if x.equipo_batea_id == juego.local_id else 'visita'}
+               for x in juego.jugadas.filter(bateador__isnull=False).order_by('-id')[:10]]
+    return {
+        'juego': {'id': juego.id, 'estado': juego.estado,
+                  'cl': juego.carreras_local, 'cv': juego.carreras_visita,
+                  'local': _eq(juego.local), 'visita': _eq(juego.visita),
+                  'torneo': juego.torneo.nombre if juego.torneo_id else ''},
+        'roster_local': _roster(juego.local), 'roster_visita': _roster(juego.visita),
+        'ultimas': ultimas,
+    }
+
+
+@login_required
+def anotar_rapido(request, pk):
+    juego = get_object_or_404(Juego.objects.select_related('local', 'visita', 'torneo'), pk=pk)
+    return render(request, 'anotador/rapido.html', {'juego_obj': juego, 'init': _estado_rapido(juego)})
+
+
+@login_required
+def api_rapido_estado(request, pk):
+    juego = get_object_or_404(Juego.objects.select_related('local', 'visita', 'torneo'), pk=pk)
+    return JsonResponse(_estado_rapido(juego))
+
+
+@login_required
+@transaction.atomic
+def api_rapido_turno(request, pk):
+    """Modo rápido: un turno al bate de CUALQUIER jugador del juego, en cualquier orden."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+    import json
+    try:
+        data = json.loads(request.body.decode() or '{}')
+    except Exception:
+        data = request.POST
+    juego = get_object_or_404(Juego.objects.select_related('local', 'visita', 'torneo'), pk=pk)
+    if juego.estado == 'final':
+        return JsonResponse({'ok': False, 'error': 'Juego finalizado'}, status=400)
+    resultado = (data.get('resultado') or '').strip()
+    if resultado not in RESULTADOS_TURNO:
+        return JsonResponse({'ok': False, 'error': 'Resultado inválido'}, status=400)
+    try:
+        bid = int(data.get('bateador_id'))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Bateador inválido'}, status=400)
+    bateador = Jugador.objects.filter(pk=bid).first()
+    if not bateador or bateador.equipo_id not in (juego.local_id, juego.visita_id):
+        return JsonResponse({'ok': False, 'error': 'El jugador no pertenece a los equipos del juego'}, status=400)
+    try:
+        rbi = max(0, min(6, int(data.get('rbi') or 0)))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'CI inválida'}, status=400)
+    anoto = bool(data.get('anoto'))
+    if resultado == 'hr' and rbi < 1:
+        rbi = 1
+    dlt = _deltas(resultado, rbi, anoto)
+    s_cl, s_cv = juego.carreras_local, juego.carreras_visita
+    _aplicar_bateo(juego, bateador, dlt)
+    Jugada.objects.create(
+        juego=juego, inning='RÁPIDO', inning_num=juego.inning_num, mitad=juego.mitad,
+        descripcion=f"{bateador.nombre_completo} #{bateador.dorsal}: {resultado.upper()} (+{rbi} CI)",
+        tipo='hit' if dlt['es_hit'] else ('out' if dlt['es_out'] else ('bb' if resultado in ('bb', 'hbp') else ('hr' if resultado == 'hr' else 'otro'))),
+        bateador=bateador, pitcher=None, equipo_batea=bateador.equipo, resultado=resultado,
+        rbi=rbi, carreras=0,
+        d_ab=dlt['ab'], d_h=dlt['h'], d_h2=dlt['h2'], d_h3=dlt['h3'], d_hr=dlt['hr'],
+        d_r=dlt['r'], d_rbi=dlt['rbi'], d_bb=dlt['bb'], d_hbp=dlt['hbp'], d_sf=dlt['sf'],
+        d_kpit=dlt['kpit'],
+        s_outs=juego.outs, s_bolas=juego.bolas, s_strikes=juego.strikes,
+        s_inning=juego.inning_num, s_mitad=juego.mitad, s_cl=s_cl, s_cv=s_cv,
+    )
+    if juego.estado == 'programado':
+        juego.estado = 'envivo'; juego.save(update_fields=['estado'])
+    return JsonResponse({'ok': True, 'state': _estado_rapido(juego)})
+
+
+@login_required
+@transaction.atomic
+def api_rapido_deshacer(request, pk):
+    """Modo rápido: revierte la última jugada de bateo del equipo indicado.
+    Solo estadísticas; NO toca inning/outs/marcador."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+    import json
+    try:
+        data = json.loads(request.body.decode() or '{}')
+    except Exception:
+        data = request.POST
+    juego = get_object_or_404(Juego.objects.select_related('torneo'), pk=pk)
+    if juego.estado == 'final':
+        return JsonResponse({'ok': False, 'error': 'Juego finalizado, no se puede deshacer'}, status=400)
+    try:
+        eq_id = int(data.get('equipo_id'))
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'equipo_id inválido'}, status=400)
+    if eq_id not in (juego.local_id, juego.visita_id):
+        return JsonResponse({'ok': False, 'error': 'equipo_id inválido'}, status=400)
+    jug = (juego.jugadas.filter(equipo_batea_id=eq_id, bateador__isnull=False)
+           .order_by('-id').first())
+    if not jug:
+        return JsonResponse({'ok': False, 'error': 'Nada que deshacer para ese equipo'}, status=400)
+    txt = jug.descripcion
+    _revertir_bateo(juego, jug)
+    jug.delete()
+    return JsonResponse({'ok': True, 'state': _estado_rapido(juego), 'deshecho': txt})
+
+
+@login_required
+@transaction.atomic
+def api_rapido_puntuar(request, pk):
+    """Modo rápido: marcador manual ajustable por equipo (+delta, nunca negativo)."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST requerido'}, status=405)
+    import json
+    try:
+        data = json.loads(request.body.decode() or '{}')
+    except Exception:
+        data = request.POST
+    juego = get_object_or_404(Juego, pk=pk)
+    if juego.estado == 'final':
+        return JsonResponse({'ok': False, 'error': 'Juego finalizado'}, status=400)
+    lado = data.get('equipo')
+    try:
+        delta = int(data.get('delta') or 0)
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Delta inválido'}, status=400)
+    if lado not in ('local', 'visita'):
+        return JsonResponse({'ok': False, 'error': 'Equipo inválido'}, status=400)
+    if lado == 'local':
+        juego.carreras_local = max(0, juego.carreras_local + delta)
+        juego.save(update_fields=['carreras_local'])
+    else:
+        juego.carreras_visita = max(0, juego.carreras_visita + delta)
+        juego.save(update_fields=['carreras_visita'])
+    return JsonResponse({'ok': True, 'state': _estado_rapido(juego)})
+
+
+@login_required
+@transaction.atomic
+def api_rapido_control(request, pk):
+    """Modo rápido: iniciar (En vivo) y finalizar (aplica resultado W/L)."""
+    import json
+    try:
+        data = json.loads(request.body.decode() or '{}')
+    except Exception:
+        data = request.POST
+    juego = get_object_or_404(Juego, pk=pk)
+    acc = (data.get('accion') or '').strip()
+    if acc == 'iniciar':
+        if juego.estado == 'programado':
+            juego.estado = 'envivo'; juego.save(update_fields=['estado'])
+    elif acc == 'finalizar':
+        # finalizar_juego es idempotente (resultado_aplicado): no duplica.
+        if juego.estado != 'final':
+            juego.estado = 'final'; juego.save(update_fields=['estado'])
+        from torneos.models import finalizar_juego
+        finalizar_juego(juego)
+    else:
+        return JsonResponse({'ok': False, 'error': 'Acción inválida'}, status=400)
+    return JsonResponse({'ok': True, 'state': _estado_rapido(juego)})

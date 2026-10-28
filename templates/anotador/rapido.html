@@ -1,0 +1,162 @@
+{% extends 'base_anotador.html' %}{% block content %}
+<style>
+.sbx{background:linear-gradient(160deg,#101f3c,#050b1d);border:1px solid rgba(234,179,8,.35);border-radius:16px;color:#fff;box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.sbx-runs{font-family:Oswald;font-size:2.6rem;font-weight:700;line-height:1}
+.sbx-logo{width:40px;height:40px;border-radius:50%;background:var(--tc,#0A1A3A);color:#fff;font-family:Oswald;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--mella-gold);font-size:.95rem;flex-shrink:0}
+.pm-btn{width:44px;height:44px;border-radius:10px;font-weight:800;font-size:1.3rem;line-height:1}
+.rost{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+.rost-head{display:flex;align-items:center;gap:8px;padding:8px 10px;color:#fff;font-family:Oswald;font-weight:700}
+.rost tbody tr{cursor:pointer;border-top:1px solid #eef2f7}
+.rost tbody tr:hover{background:#f8fafc}
+.rost tr.sel-row{background:linear-gradient(90deg,#fef9c3,#fff);border-left:5px solid var(--mella-gold)}
+.qr-dorsal{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#0A1A3A;color:#fff;font-family:Oswald;font-weight:700;font-size:.8rem}
+.qr-stat{font-size:.78rem;color:#64748b;white-space:nowrap}
+.res-btn{min-height:48px;font-weight:800;transition:transform .12s,box-shadow .12s}
+.sel-box{border:3px solid var(--mella-gold);border-radius:16px;background:#f0fdf4}
+.ult-row{border-top:1px solid #eef2f7;padding:4px 0;font-size:.85rem}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+<div><a href="{% url 'anotador_lista' %}" class="text-white text-decoration-none">← Juegos</a>
+<span class="badge bg-secondary ms-2" id="stEstado">{{ juego_obj.estado }}</span>
+<small class="text-white-50 ms-2">{{ juego_obj.torneo.nombre }} • {{ juego_obj.estadio }} • {{ juego_obj.fecha|date:"d M H:i" }}</small></div>
+<div class="d-flex gap-2"><a class="btn btn-sm btn-ghost" href="{% url 'anotar_juego' juego_obj.id %}">🏏 Modo clásico</a><button class="btn btn-sm btn-ghost" id="btnRefresh">↻ Actualizar</button></div>
+</div>
+
+<!-- MARCADOR MANUAL -->
+<div class="sbx p-3 mb-3">
+<div class="row align-items-center text-center g-2">
+<div class="col-5 col-md-5">
+<div class="d-flex align-items-center justify-content-center gap-2"><span class="sbx-logo" style="--tc:{{ juego_obj.visita.color }}">{{ juego_obj.visita.sigla|slice:":2" }}</span><small class="text-white-50">VISITA</small></div>
+<div class="sbx-runs" id="sbV">{{ juego_obj.carreras_visita }}</div>
+<div class="d-flex justify-content-center gap-2 mt-1"><button class="btn btn-ghost pm-btn" data-pun="visita" data-delta="-1">−</button><button class="btn btn-success pm-btn" data-pun="visita" data-delta="1">+</button></div>
+</div>
+<div class="col-2">
+<small class="text-white-50 d-block mb-1">MARCADOR MANUAL</small>
+<button class="btn btn-sm btn-gold w-100" id="btnIniciar">▶ Play</button>
+<button class="btn btn-sm btn-mella w-100 mt-1" id="btnFinalizar">■ Final</button>
+</div>
+<div class="col-5">
+<div class="d-flex align-items-center justify-content-center gap-2"><small class="text-white-50">LOCAL</small><span class="sbx-logo" style="--tc:{{ juego_obj.local.color }}">{{ juego_obj.local.sigla|slice:":2" }}</span></div>
+<div class="sbx-runs" id="sbL">{{ juego_obj.carreras_local }}</div>
+<div class="d-flex justify-content-center gap-2 mt-1"><button class="btn btn-ghost pm-btn" data-pun="local" data-delta="-1">−</button><button class="btn btn-success pm-btn" data-pun="local" data-delta="1">+</button></div>
+</div>
+</div>
+</div>
+
+<!-- ROSTER COMPLETO DE AMBOS EQUIPOS -->
+<div class="row g-3">
+<div class="col-12 col-lg-6"><div class="card card-mella p-0 overflow-hidden"><div class="rost-head" style="background:#0A1A3A"><span>⚡ {{ juego_obj.visita.nombre }} · VISITA</span><button class="btn btn-sm btn-ghost ms-auto" id="btnUndoV" title="Deshacer última jugada de la visita">↩ Deshacer</button></div>
+<div class="table-responsive"><table class="tbl rost"><thead><tr><th>#</th><th>Jugador</th><th>Pos</th><th>AB</th><th>H</th><th>HR</th><th>CI</th><th>BB</th><th>K</th></tr></thead><tbody id="roVis"></tbody></table></div></div></div>
+<div class="col-12 col-lg-6"><div class="card card-mella p-0 overflow-hidden"><div class="rost-head" style="background:#0A1A3A"><span>⚡ {{ juego_obj.local.nombre }} · LOCAL</span><button class="btn btn-sm btn-ghost ms-auto" id="btnUndoL" title="Deshacer última jugada del local">↩ Deshacer</button></div>
+<div class="table-responsive"><table class="tbl rost"><thead><tr><th>#</th><th>Jugador</th><th>Pos</th><th>AB</th><th>H</th><th>HR</th><th>CI</th><th>BB</th><th>K</th></tr></thead><tbody id="roLoc"></tbody></table></div></div></div>
+</div>
+
+<!-- REGISTRAR TURNO -->
+<div class="card sel-box p-3 mt-3"><h5 class="oswald mb-1">🏏 Registrar turno • <span id="selName">—</span></h5>
+<small class="text-muted" id="selSub">Toca un jugador de la lista y luego el resultado de su turno al bate. No hay orden obligatorio: elige a quien quieras. El CI (impulsadas) se aplica al registrar.</small>
+<div class="row g-2 align-items-end mt-1">
+<div class="col-6 col-md-3"><label class="frm-label">CI (impulsadas)</label><div class="d-flex align-items-center gap-2"><button type="button" class="btn btn-ghost btn-sm" id="rbiM">−</button><input id="fRbi" type="number" class="form-control text-center" value="0" min="0" max="6" style="max-width:70px"><button type="button" class="btn btn-ghost btn-sm" id="rbiP">+</button></div></div>
+<div class="col-6 col-md-4"><label class="frm-label"><input type="checkbox" id="fAnoto"> El bateador anotó carrera (R)</label><br><small class="text-muted">El HR suma R+CI solo.</small></div>
+</div>
+<div class="d-flex flex-wrap gap-2 mt-2">
+<button class="btn btn-success res-btn" data-res="hit">HIT 1B</button>
+<button class="btn btn-navy res-btn" data-res="doble">DOBLE 2B</button>
+<button class="btn btn-navy res-btn" data-res="triple">TRIPLE 3B</button>
+<button class="btn btn-gold res-btn" data-res="hr">💥 HR</button>
+<button class="btn btn-mella res-btn" data-res="out">OUT</button>
+<button class="btn btn-mella res-btn" data-res="fc">FC</button>
+<button class="btn btn-dark res-btn" data-res="dp">DP ⚾⚾</button>
+<button class="btn btn-dark res-btn" data-res="k">PONCHE K</button>
+<button class="btn btn-ghost res-btn" data-res="bb">BB</button>
+<button class="btn btn-ghost res-btn" data-res="hbp">GOLPE</button>
+<button class="btn btn-ghost res-btn" data-res="sf">SAC SF</button>
+<button class="btn btn-ghost res-btn" data-res="error">ERROR</button>
+</div>
+</div>
+
+<div class="card card-mella p-3 mt-3"><h5 class="oswald">Últimas jugadas</h5><div id="feed"></div></div>
+
+{{ init|json_script:'init-json' }}
+<script>
+(function(){
+var PK="{{ juego_obj.id }}";
+var U_EST="/anotador/juego/"+PK+"/api/rapido/estado/", U_TUR="/anotador/juego/"+PK+"/api/rapido/turno/",
+    U_DES="/anotador/juego/"+PK+"/api/rapido/deshacer/", U_PUN="/anotador/juego/"+PK+"/api/rapido/puntuar/",
+    U_CTL="/anotador/juego/"+PK+"/api/rapido/control/";
+function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf()},body:JSON.stringify(b||{})}).then(function(r){return r.json()});}
+var S=null, SEL=null;
+var EQUIPOS={};
+function trozo(p, eq){
+  var marca=SEL&&SEL.id===p.id?' sel-row':'';
+  return '<tr data-id="'+p.id+'" data-eq="'+eq+'" class="qr-row'+marca+'"><td><span class="qr-dorsal">'+(p.dorsal||'-')+'</span></td><td>'+p.nombre+'</td><td><span class="badge bg-dark">'+p.pos+'</span></td><td>'+p.ab+'</td><td>'+p.h+'</td><td>'+(p.h2?'<span class="badge bg-info text-dark">2B</span>':'')+''+(p.h3?'<span class="badge bg-warning text-dark">3B</span>':'')+''+(p.hr?'<span class="badge bg-danger">HR</span>':'')+'</td><td>'+p.rbi+'</td><td>'+p.bb+'</td><td>'+p.k+'</td></tr>';
+}
+function render(st){
+  S=st; var j=st.juego;
+  EQUIPOS.local=j.local; EQUIPOS.visita=j.visita;
+  document.getElementById('stEstado').textContent=j.estado;
+  document.getElementById('sbV').textContent=j.cv; document.getElementById('sbL').textContent=j.cl;
+  document.getElementById('roVis').innerHTML=st.roster_visita.map(function(p){return trozo(p,'visita');}).join('');
+  document.getElementById('roLoc').innerHTML=st.roster_local.map(function(p){return trozo(p,'local');}).join('');
+  var fin=(j.estado==='final');
+  if(SEL){var tr=document.querySelector('.qr-row[data-id="'+SEL.id+'"]');if(tr)tr.classList.add('sel-row');}
+  document.getElementById('btnIniciar').disabled=fin||j.estado==='envivo';
+  document.getElementById('btnFinalizar').disabled=fin;
+  document.querySelectorAll('[data-pun]').forEach(function(b){b.disabled=fin;});
+  document.querySelectorAll('.res-btn').forEach(function(b){b.disabled=fin;});
+  document.getElementById('btnUndoV').disabled=fin||!st.ultimas.some(function(x){return x.eq==='visita';});
+  document.getElementById('btnUndoL').disabled=fin||!st.ultimas.some(function(x){return x.eq==='local';});
+  var sig={visita:j.visita.sigla,local:j.local.sigla};
+  document.getElementById('feed').innerHTML=st.ultimas.map(function(x){return '<div class="ult-row"><span class="badge bg-secondary">'+(sig[x.eq]||'')+'</span> '+x.txt+'</div>';}).join('')||'<small class="text-muted">Sin jugadas.</small>';
+  if(SEL){
+    var all=st.roster_visita.concat(st.roster_local);
+    var p=all.find(function(q){return q.id===SEL.id;});
+    document.getElementById('selName').textContent=p?(p.nombre+' #'+p.dorsal+' ('+p.pos+') • '+EQUIPOS[SEL.team].nombre):'—';
+    document.getElementById('selSub').textContent=p?('Tallas de '+p.nombre+' en este juego: AB '+p.ab+' · H '+p.h+' · HR '+p.hr+' · CI '+p.rbi+' · BB '+p.bb+' · K '+p.k):'—';
+  }else{
+    document.getElementById('selName').textContent='—';
+    document.getElementById('selSub').textContent=fin?'Juego finalizado.':'Toca un jugador de la lista y luego el resultado de su turno al bate.';
+  }
+}
+document.getElementById('roVis').addEventListener('click',pick);
+document.getElementById('roLoc').addEventListener('click',pick);
+function pick(e){
+  var tr=e.target.closest('.qr-row');if(!tr)return;
+  if(S&&S.juego.estado==='final')return;
+  SEL={id:parseInt(tr.dataset.id,10),team:tr.dataset.eq};
+  render(S);
+}
+document.querySelectorAll('.res-btn').forEach(function(b){b.addEventListener('click',function(){
+  if(!SEL){alert('Selecciona un jugador de la lista primero.');return;}
+  var r=b.dataset.res;
+  var ci=document.getElementById('fRbi');
+  if(r==='hr'){ci.value=Math.max(1,parseInt(ci.value||0));}
+  if(r==='out'||r==='k'||r==='fc'||r==='dp'){ci.value=0;document.getElementById('fAnoto').checked=false;}
+  var p={bateador_id:SEL.id,resultado:r,rbi:ci.value,anoto:document.getElementById('fAnoto').checked?1:0};
+  post(U_TUR,p).then(function(d){
+    if(!d.ok){alert(d.error||'Error');return;}
+    render(d.state);
+    document.getElementById('fAnoto').checked=false;document.getElementById('fRbi').value=0;
+  });
+});});
+function step(d){var el=document.getElementById('fRbi');el.value=Math.max(0,Math.min(6,(parseInt(el.value||0)+d)));}
+document.getElementById('rbiM').addEventListener('click',function(){step(-1)});
+document.getElementById('rbiP').addEventListener('click',function(){step(1)});
+document.querySelectorAll('[data-pun]').forEach(function(b){b.addEventListener('click',function(){
+  post(U_PUN,{equipo:b.dataset.pun,delta:parseInt(b.dataset.delta,10)}).then(function(d){
+    if(!d.ok){alert(d.error||'Error');return;}render(d.state);});
+});});
+document.getElementById('btnUndoV').addEventListener('click',function(){des('visita')});
+document.getElementById('btnUndoL').addEventListener('click',function(){des('local')});
+function des(t){if(!EQUIPOS[t])return;if(!confirm('¿Deshacer la última jugada de '+(t==='local'?'LOCAL':'VISITA')+'? Revierte sus estadísticas.'))return;
+  post(U_DES,{equipo_id:EQUIPOS[t].id}).then(function(d){if(!d.ok){alert(d.error);return;}render(d.state);});}
+document.getElementById('btnIniciar').addEventListener('click',function(){post(U_CTL,{accion:'iniciar'}).then(function(d){render(d.state);});});
+document.getElementById('btnFinalizar').addEventListener('click',function(){if(!confirm('¿Finalizar juego? Actualiza tabla y notifica.'))return;post(U_CTL,{accion:'finalizar'}).then(function(d){if(!d.ok){alert(d.error);return;}render(d.state);alert('Juego finalizado');});});
+document.getElementById('btnRefresh').addEventListener('click',load);
+function load(){fetch(U_EST).then(function(r){return r.json()}).then(render);}
+var INIT=JSON.parse(document.getElementById('init-json').textContent);
+render(INIT); load(); setInterval(load, 20000);
+})();
+</script>
+{% endblock %}

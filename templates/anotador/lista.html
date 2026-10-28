@@ -53,6 +53,7 @@
 {% elif j.estado == 'final' %}<span class="badge bg-secondary">FINAL</span> <span class="badge bg-dark">{{ j.carreras_visita }} - {{ j.carreras_local }}</span>
 {% else %}<span class="badge bg-light text-dark border">PROGRAMADO</span>{% endif %}
 <a class="btn {% if j.estado == 'final' %}btn-ghost{% else %}btn-mella{% endif %} btn-sm ms-auto" href="{% url 'anotar_juego' j.id %}">{% if j.estado == 'envivo' %}Continuar →{% elif j.estado == 'final' %}Ver{% else %}Anotar →{% endif %}</a>
+<a class="btn btn-ghost btn-sm" href="{% url 'anotar_juego_rapido' j.id %}" title="Modo rápido: estadísticas sin alineación">⚡</a>
 </div>
 <small class="text-muted">{{ j.torneo.nombre }} • {{ j.estadio }}</small>
 </div>

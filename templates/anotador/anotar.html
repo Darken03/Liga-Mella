@@ -33,7 +33,7 @@
 <div><a href="{% url 'anotador_lista' %}" class="text-white text-decoration-none">← Hoy</a>
 <span class="badge bg-secondary ms-2" id="stEstado">{{ juego_obj.estado }}</span>
 <small class="text-white-50 ms-2">{{ juego_obj.torneo.nombre }} • {{ juego_obj.estadio }} • {{ juego_obj.fecha|date:"d M H:i" }}</small>{% if juego_obj.fase != 'regular' %} <span class="badge bg-danger ms-2">{{ juego_obj.get_fase_display }} {{ juego_obj.serie }}</span>{% endif %}</div>
-<div class="d-flex gap-2"><button class="btn btn-sm btn-ghost" id="btnRefresh">↻ Actualizar</button><button class="btn btn-sm btn-ghost" id="btnUndo">↩ Deshacer último</button></div>
+<div class="d-flex gap-2"><a class="btn btn-sm btn-ghost" href="{% url 'anotar_juego_rapido' juego_obj.id %}" title="Modo rápido: estadísticas sin alineación">⚡ Modo rápido</a><button class="btn btn-sm btn-ghost" id="btnRefresh">↻ Actualizar</button><button class="btn btn-sm btn-ghost" id="btnUndo">↩ Deshacer último</button></div>
 </div>
 
 <!-- MARCADOR SUPERIOR -->
