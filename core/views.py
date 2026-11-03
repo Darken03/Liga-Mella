@@ -156,6 +156,10 @@ def estadisticas(request):
     if h_key not in ATTRS:
         orden_h = '-hr'; h_key = 'hr'
     desc_h = (orden_h or '-hr').startswith('-')
+    # --- pleca "mostrar todos": por defecto se excluyen los jugadores con
+    # menos de 7 turnos al bate (AB) que el primero de la lista. ---
+    ALL_KEYS = ('todos', 'mostrar_todos', 'ver_todos', 'all', 'show_all', 'mostrar_todo')
+    mostrar_todos = any(k in request.GET for k in ALL_KEYS)
     t = Torneo.objects.filter(pk=tid).first() if tid else Torneo.objects.filter(activo=True).first() or Torneo.objects.first()
     tab = request.GET.get('tab', 'lideres')
     if tab not in ('lideres', 'fama'):
@@ -168,6 +172,11 @@ def estadisticas(request):
         lineas = lineas.filter(jugador__equipo_id=equipo_sel.id)
     if q: lineas = lineas.filter(jugador__nombre__icontains=q)
     lineas = sorted(lineas, key=lambda l: getattr(l, base_key), reverse=desc)
+    # filtro por turnos al bate: excluir los que tienen menos de 7 AB que el primero
+    if not mostrar_todos and lineas:
+        primero_ab = getattr(lineas[0], 'ab', 0) or 0
+        umbral = primero_ab - 7
+        lineas = [l for l in lineas if (getattr(l, 'ab', 0) or 0) >= umbral]
     # --- pitcheo del equipo/torneo (para reporte completo) ---
     if t and equipo_sel:
         pitcheo = list(ActuacionPitcheo.objects.filter(
@@ -225,11 +234,16 @@ def estadisticas(request):
     if equipo_sel:
         fama = [f for f in fama if f['jugador'].equipo_id == equipo_sel.id]
     fama = sorted(fama, key=lambda f: f[h_key], reverse=desc_h)
+    if not mostrar_todos and fama:
+        primero_ab = fama[0].get('ab', 0) or 0
+        umbral = primero_ab - 7
+        fama = [f for f in fama if (f.get('ab', 0) or 0) >= umbral]
     return render(request, 'core/estadisticas.html', {
         'torneo': t, 'torneos': torneos, 'lineas': lineas, 'q': q,
         'orden': orden, 'orden_h': orden_h, 'fama': fama, 'tab': tab,
         'equipos': equipos, 'equipo_sel': equipo_sel,
         'pitcheo': pitcheo, 'tot': tot, 'linea_eq': linea_eq,
+        'mostrar_todos': mostrar_todos,
     })
 
 
